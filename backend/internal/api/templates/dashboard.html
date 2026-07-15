@@ -1,0 +1,65 @@
+{{define "title"}}{{.StartupName}} — Dashboard — LaunchRelay{{end}}
+
+{{define "content"}}
+{{if .HasImpressions}}
+<div class="kpi-grid">
+  <div class="kpi"><div class="value">{{.Impressions7d}}</div><div class="label">Impressions (7d)</div></div>
+  <div class="kpi"><div class="value">{{.Clicks7d}}</div><div class="label">Clicks (7d)</div></div>
+  <div class="kpi"><div class="value">{{printf "%.2f" .CTR}}%</div><div class="label">CTR</div></div>
+  <div class="kpi"><div class="value">{{.ReciprocityBalance}}</div><div class="label">Reciprocity Balance</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Reciprocity</h2>
+    <table>
+      <tr><th>Given</th><td>{{.ImpressionsGiven}}</td></tr>
+      <tr><th>Received</th><td>{{.ImpressionsReceived}}</td></tr>
+      <tr><th>Balance</th><td>{{.ReciprocityBalance}}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Trust Status</h2>
+    <table>
+      <tr><th>Score</th><td>{{printf "%.3f" .TrustScore}}</td></tr>
+      <tr><th>Status</th><td><span class="badge {{if eq .Status "active"}}badge-green{{else if eq .Status "grace_period"}}badge-yellow{{else}}badge-red{{end}}">{{.Status}}</span></td></tr>
+      {{if .LastVerifiedAt}}<tr><th>Last Verified</th><td>{{.LastVerifiedAt}}</td></tr>{{end}}
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recent Matched Partners</h2>
+  {{if .RecentMatches}}
+  <table>
+    <thead><tr><th>Partner</th><th>Impressions</th><th>Clicks</th></tr></thead>
+    <tbody>
+    {{range .RecentMatches}}
+      <tr><td><a href="/directory/{{.Slug}}">{{.Name}}</a></td><td>{{.Impressions}}</td><td>{{.Clicks}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty"><p>No matches yet. Partners will appear here once your widget starts showing other startups.</p></div>
+  {{end}}
+</div>
+
+<div class="card">
+  <h2>Widget Embed Code</h2>
+  <p style="margin-bottom:8px;color:#666;font-size:13px">Copy and paste this into your site's HTML to activate the widget:</p>
+  <code style="display:block;background:#f0f0f0;border:1px solid #e5e5e5;border-radius:4px;padding:12px;font-size:12px;word-break:break-all;">{{.EmbedCode}}</code>
+</div>
+
+{{else}}
+<div class="empty">
+  <h3>Welcome to LaunchRelay!</h3>
+  <p style="margin-bottom:20px">You haven't received any impressions yet. Install the widget to get started.</p>
+  <div style="background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:20px;margin-bottom:20px;text-align:left">
+    <h4 style="margin-bottom:8px">Your Embed Code</h4>
+    <code style="display:block;background:#f0f0f0;border:1px solid #e5e5e5;border-radius:4px;padding:12px;font-size:12px;word-break:break-all;">{{.EmbedCode}}</code>
+  </div>
+  <p style="font-size:13px;color:#666">Place this script tag just before your closing <strong>&lt;/body&gt;</strong> tag. The widget will auto-magically start showing other startups to your visitors.</p>
+</div>
+{{end}}
+{{end}}

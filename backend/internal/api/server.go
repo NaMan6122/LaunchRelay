@@ -40,6 +40,15 @@ func New(db *sqlx.DB) *Server {
 func (s *Server) registerRoutes() {
 	s.router.Get("/v1/health", s.handleHealth())
 
+	// Rate-limited routes
+	s.router.Group(func(r chi.Router) {
+		r.Use(s.rateLimit)
+
+		r.Get("/v1/match", s.handleMatch())
+		r.Post("/v1/impressions", s.handleBatchImpressions())
+		r.Post("/v1/clicks", s.handleClick())
+	})
+
 	// Startups
 	s.router.Post("/v1/startups", s.handleCreateStartup())
 	s.router.Get("/v1/startups/{id}", s.handleGetStartup())
@@ -52,11 +61,26 @@ func (s *Server) registerRoutes() {
 	s.router.Post("/v1/startups/{id}/exclusions", s.handleCreateExclusion())
 	s.router.Get("/v1/startups/{id}/exclusions", s.handleListExclusions())
 
-	// Matching
-	s.router.Get("/v1/match", s.handleMatch())
+	// Trust score
+	s.router.Get("/v1/startups/{id}/trust", s.handleTrustScore())
+
+	// Dashboard API (JSON)
+	s.router.Get("/v1/dashboard/{startup_id}", s.handleDashboard())
+
+	// Public directory API (JSON)
+	s.router.Get("/v1/directory", s.handleListDirectory())
+	s.router.Get("/v1/directory/{slug}", s.handleDirectoryEntry())
 
 	// Ledger (admin-triggered monthly computation)
 	s.router.Post("/v1/admin/ledger/compute", s.handleComputeLedger())
+
+	// HTML pages
+	s.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/directory", http.StatusFound)
+	})
+	s.router.Get("/dashboard/{startup_id}", s.handleDashboardHTML())
+	s.router.Get("/directory/{slug}", s.handleProfileHTML())
+	s.router.Get("/directory", s.handleDirectoryHTML())
 }
 
 func (s *Server) Start() error {

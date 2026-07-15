@@ -1,0 +1,39 @@
+{{define "title"}}{{.Name}} — LaunchRelay Directory{{end}}
+
+{{define "content"}}
+<div style="margin-bottom:16px">
+  <a href="/directory" style="font-size:13px;color:#666">&larr; Back to Directory</a>
+</div>
+
+<div class="card" style="display:flex;align-items:flex-start;gap:16px">
+  <div style="width:64px;height:64px;border-radius:12px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#999;flex-shrink:0">{{initial .Name}}</div>
+  <div style="min-width:0;flex:1">
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:4px">{{.Name}}</h1>
+    <p style="font-size:14px;color:#666;margin-bottom:8px">{{.Pitch}}</p>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+      {{range .Categories}}<span class="badge" style="background:#f0f0f0;color:#666">{{.}}</span>{{end}}
+    </div>
+    <a href="{{.URL}}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:4px">Visit Website →</a>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Public Stats (30 days)</h2>
+    <table>
+      <tr><th>Impressions</th><td>{{.Impressions30d}}</td></tr>
+      <tr><th>Clicks</th><td>{{.Clicks30d}}</td></tr>
+      {{if gt .Impressions30d 0}}<tr><th>CTR</th><td>{{printf "%.2f" .CTR}}%</td></tr>{{end}}
+      <tr><th>Trust Score</th><td>{{printf "%.3f" .TrustScore}}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>About</h2>
+    <table>
+      <tr><th>Joined</th><td>{{.JoinedAt}}</td></tr>
+      <tr><th>Status</th><td><span class="badge badge-green">Active</span></td></tr>
+    </table>
+  </div>
+</div>
+{{end}}

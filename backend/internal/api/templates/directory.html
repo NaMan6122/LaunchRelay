@@ -1,0 +1,46 @@
+{{define "title"}}Directory — LaunchRelay{{end}}
+
+{{define "content"}}
+<h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Startup Directory</h2>
+<p style="color:#666;margin-bottom:20px">Discover and support indie founders in the LaunchRelay network.</p>
+
+<div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap">
+  <a href="/directory" class="btn {{if not .Category}}btn-primary{{else}}btn{{end}}" style="padding:6px 14px;font-size:13px;border:1px solid #d0d0d0">All</a>
+  {{range .Categories}}
+  <a href="/directory?category={{.}}" class="btn {{if eq $.Category .}}btn-primary{{end}}" style="padding:6px 14px;font-size:13px;border:1px solid #d0d0d0">{{.}}</a>
+  {{end}}
+</div>
+
+{{if .Entries}}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+{{range .Entries}}
+  <div class="card" style="margin-bottom:0">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="width:40px;height:40px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#999;flex-shrink:0">{{initial .Name}}</div>
+      <div style="min-width:0">
+        <a href="/directory/{{.Slug}}" style="font-weight:600;font-size:15px">{{.Name}}</a>
+        <p style="font-size:13px;color:#666;margin-top:2px">{{.Pitch}}</p>
+        <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+          {{range .Categories}}<span class="badge" style="background:#f0f0f0;color:#666">{{.}}</span>{{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+{{end}}
+</div>
+
+{{if gt .TotalPages 1}}
+<div style="display:flex;justify-content:center;gap:8px;margin-top:24px">
+  {{if gt .Page 1}}<a href="/directory?page={{sub .Page 1}}{{if .Category}}&category={{.Category}}{{end}}" class="btn" style="padding:6px 14px;border:1px solid #d0d0d0">Previous</a>{{end}}
+  <span style="padding:6px 14px;font-size:13px;color:#666">Page {{.Page}} of {{.TotalPages}}</span>
+  {{if lt .Page .TotalPages}}<a href="/directory?page={{add .Page 1}}{{if .Category}}&category={{.Category}}{{end}}" class="btn" style="padding:6px 14px;border:1px solid #d0d0d0">Next</a>{{end}}
+</div>
+{{end}}
+
+{{else}}
+<div class="empty">
+  <h3>No startups found</h3>
+  <p>Check back soon as new founders join the network.</p>
+</div>
+{{end}}
+{{end}}
