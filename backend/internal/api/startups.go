@@ -1,0 +1,199 @@
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+)
+
+type StartupRequest struct {
+	Name         string   `json:"name"`
+	URL          string   `json:"url"`
+	OneLinePitch string   `json:"one_line_pitch"`
+	Categories   []string `json:"categories"`
+	Email        string   `json:"email"`
+}
+
+type StartupResponse struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	URL       string   `json:"url"`
+	Slug      string   `json:"slug"`
+	Pitch     string   `json:"one_line_pitch"`
+	Categories []string `json:"categories"`
+	Status    string   `json:"status"`
+	EmbedCode string   `json:"embed_code,omitempty"`
+	CreatedAt string   `json:"created_at"`
+}
+
+type StartupStatusUpdate struct {
+	Status string `json:"status"`
+}
+
+var slugRegex = regexp.MustCompile(`[^a-z0-9-]`)
+
+func toSlug(name string) string {
+	s := strings.ToLower(name)
+	s = strings.ReplaceAll(s, " ", "-")
+	s = slugRegex.ReplaceAllString(s, "")
+	return s
+}
+
+func generateEmbedCode(startupID string) string {
+	return `<script src="https://cdn.launchrelay.com/widget.js" data-startup-id="` + startupID + `" async></script>`
+}
+
+func validURL(raw string) bool {
+	u, err := url.ParseRequestURI(raw)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "http" || u.Scheme == "https"
+}
+
+func (s *Server) handleCreateStartup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req StartupRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		if req.Name == "" || req.URL == "" || req.OneLinePitch == "" || req.Email == "" {
+			writeError(w, http.StatusBadRequest, "missing required fields: name, url, one_line_pitch, email")
+			return
+		}
+
+		if !validURL(req.URL) {
+			writeError(w, http.StatusBadRequest, "invalid URL: must be a valid http or https URL")
+			return
+		}
+
+		if len(req.OneLinePitch) > 280 {
+			writeError(w, http.StatusBadRequest, "one_line_pitch must be 280 characters or fewer")
+			return
+		}
+
+		slug := toSlug(req.Name)
+
+		var id string
+		err := s.db.QueryRow(
+			`INSERT INTO startups (name, url, slug, one_line_pitch, email)
+			 VALUES ($1, $2, $3, $4, $5)
+			 RETURNING id`,
+			req.Name, req.URL, slug, req.OneLinePitch, req.Email,
+		).Scan(&id)
+		if err != nil {
+			if strings.Contains(err.Error(), "unique") {
+				writeError(w, http.StatusConflict, "a startup with this name already exists")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "failed to create startup", err.Error())
+			return
+		}
+
+		// Assign categories
+		for _, catName := range req.Categories {
+			var catID string
+			err := s.db.QueryRow(`SELECT id FROM categories WHERE name = $1`, catName).Scan(&catID)
+			if err != nil {
+				continue // skip unknown categories
+			}
+			s.db.Exec(`INSERT INTO startup_categories (startup_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, id, catID)
+		}
+
+		writeCreated(w, StartupResponse{
+			ID:        id,
+			Name:      req.Name,
+			URL:       req.URL,
+			Slug:      slug,
+			Pitch:     req.OneLinePitch,
+			Categories: req.Categories,
+			Status:    "pending",
+			EmbedCode: generateEmbedCode(id),
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+}
+
+func (s *Server) handleUpdateStartup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+
+		var req StartupStatusUpdate
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		validStatuses := map[string]bool{
+			"pending": true, "active": true, "paused": true, "delisted": true, "rejected": true,
+		}
+		if !validStatuses[req.Status] {
+			writeError(w, http.StatusBadRequest, "invalid status: must be one of pending, active, paused, delisted, rejected")
+			return
+		}
+
+		result, err := s.db.Exec(
+			`UPDATE startups SET status = $1, updated_at = NOW() WHERE id = $2`,
+			req.Status, id,
+		)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to update startup")
+			return
+		}
+
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			writeError(w, http.StatusNotFound, "startup not found")
+			return
+		}
+
+		writeOK(w, map[string]string{"status": "updated"})
+	}
+}
+
+func (s *Server) handleGetStartup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+
+		var resp StartupResponse
+		var logoURL *string
+		var createdAt time.Time
+		err := s.db.QueryRow(
+			`SELECT id, name, url, slug, one_line_pitch, logo_url, status, created_at
+			 FROM startups WHERE id = $1`, id,
+		).Scan(&resp.ID, &resp.Name, &resp.URL, &resp.Slug, &resp.Pitch, &logoURL, &resp.Status, &createdAt)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "startup not found")
+			return
+		}
+
+		// Load categories
+		rows, err := s.db.Query(
+			`SELECT c.name FROM startup_categories sc
+			 JOIN categories c ON c.id = sc.category_id
+			 WHERE sc.startup_id = $1`, id,
+		)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var cat string
+				rows.Scan(&cat)
+				resp.Categories = append(resp.Categories, cat)
+			}
+		}
+
+		resp.CreatedAt = createdAt.Format(time.RFC3339)
+		resp.EmbedCode = generateEmbedCode(resp.ID)
+
+		writeOK(w, resp)
+	}
+}
+
+
