@@ -41,9 +41,7 @@
   function parseConfig(): Config | null {
     const script =
       document.currentScript ||
-      document.querySelector<HTMLScriptElement>(
-        'script[data-startup-id]'
-      );
+      (document.querySelector('script[data-startup-id]') as HTMLScriptElement | null);
     if (!script) return null;
 
     const startupId = script.getAttribute('data-startup-id');
@@ -59,58 +57,60 @@
     };
   }
 
-  // ── Container creation (CLS prevention) ───────────────────────────
+  // ── Container creation ────────────────────────────────────────────
 
   function createContainer(config: Config): HTMLDivElement {
     const el = document.createElement('div');
     el.id = 'lr-slot';
-    el.setAttribute('aria-live', 'polite');
 
-    const baseStyles: Record<string, string> = {
-      width: '100%',
-      overflow: 'hidden',
-      'box-sizing': 'border-box',
-    };
+    if (config.format === 'card') {
+      el.style.cssText = 'width:100%;overflow:hidden;box-sizing:border-box;';
+      return el;
+    }
 
-    if (config.format === 'bar') {
-      if (config.position === 'bottom') {
-        baseStyles['position'] = 'fixed';
-        baseStyles['bottom'] = '0';
-        baseStyles['left'] = '0';
-        baseStyles['right'] = '0';
-        baseStyles['z-index'] = '999999';
-      } else {
-        baseStyles['position'] = 'fixed';
-        baseStyles['top'] = '0';
-        baseStyles['left'] = '0';
-        baseStyles['right'] = '0';
-        baseStyles['z-index'] = '999999';
-      }
+    const isBottom = config.position === 'bottom';
+    const isBadge = config.format === 'badge';
+
+    el.style.cssText = [
+      'position:fixed',
+      isBottom ? 'bottom:0' : 'top:0',
+      'left:0',
+      'right:0',
+      'z-index:999999',
+      'overflow:hidden',
+      'box-sizing:border-box',
+    ].join(';') + ';';
+
+    if (isBadge) {
+      el.style.width = '64px';
+      el.style.height = '64px';
+      el.style.left = 'auto';
+      el.style.right = '16px';
+      if (isBottom) el.style.bottom = '16px';
+      else el.style.top = '16px';
+      el.style.borderRadius = '50%';
+    } else {
       el.style.minHeight = '48px';
     }
 
-    Object.assign(el.style, baseStyles);
     return el;
   }
 
-  // ── Match fetching (mock for prototype) ──────────────────────────
+  // ── Match fetching (production: real API) ─────────────────────────
 
-  async function fetchMatch(config: Config): Promise<MatchData> {
-    const mock: MatchData = {
-      match: {
-        id: 'mock-startup-001',
-        name: 'ShipFast',
-        one_line_pitch: 'Deploy your SaaS in days, not months',
-        url: 'https://shipfast.example.com',
-        logo_url: '',
-        category: ['devtools'],
-      },
-      impression_id: 'imp-mock-' + Date.now(),
-    };
+  async function fetchMatch(config: Config): Promise<MatchData | null> {
+    const base = getApiBase();
+    const hostDomain = window.location.hostname;
+    const url = `${base}/v1/match?startup_id=${encodeURIComponent(config.startupId)}&host_domain=${encodeURIComponent(hostDomain)}`;
 
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(mock), 200);
+    const res = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + config.token },
     });
+
+    if (res.status === 204) return null;
+    if (!res.ok) throw new Error('match fetch failed: ' + res.status);
+
+    return res.json() as Promise<MatchData>;
   }
 
   // ── Shadow DOM rendering ─────────────────────────────────────────
@@ -121,110 +121,117 @@
     config: Config
   ): void {
     const shadow = host.attachShadow({ mode: 'closed' });
-
     const style = document.createElement('style');
     style.textContent = getWidgetStyles(config);
     shadow.appendChild(style);
 
     const root = document.createElement('div');
-    root.className = `lr-widget lr-theme-${config.theme} lr-format-${config.format}`;
+    root.className = `lr-widget lr-${config.format} lr-${config.theme}`;
     root.innerHTML = buildWidgetHTML(data, config);
+
+    if (config.format === 'badge') {
+      setupBadgeInteraction(root, shadow);
+    }
+
     shadow.appendChild(root);
   }
 
+  function renderPlaceholder(host: HTMLElement, config: Config): void {
+    const shadow = host.attachShadow({ mode: 'closed' });
+    const style = document.createElement('style');
+    style.textContent = `
+      :host { all: initial; display: block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; line-height: 1.4; }
+      .lr-placeholder { padding: 6px 12px; text-align: center; color: ${config.theme === 'dark' ? '#888' : '#999'}; }
+      .lr-placeholder a { color: ${config.theme === 'dark' ? '#4d94ff' : '#0066ff'}; text-decoration: none; }
+    `;
+    shadow.appendChild(style);
+    const div = document.createElement('div');
+    div.className = 'lr-placeholder';
+    div.innerHTML = 'Supporting indie founders · <a href="https://launchrelay.com/directory" target="_blank" rel="noopener">Explore</a>';
+    shadow.appendChild(div);
+  }
+
+  function setupBadgeInteraction(root: HTMLElement, shadow: ShadowRoot): void {
+    const badge = root.querySelector('.lr-badge-trigger') as HTMLElement | null;
+    const popover = root.querySelector('.lr-popover') as HTMLElement | null;
+    if (!badge || !popover) return;
+
+    let open = false;
+    function toggle() {
+      open = !open;
+      popover.style.display = open ? 'block' : 'none';
+    }
+
+    badge.addEventListener('click', toggle);
+    badge.addEventListener('mouseenter', () => { popover.style.display = 'block'; });
+    badge.addEventListener('mouseleave', () => {
+      setTimeout(() => { if (!open) popover.style.display = 'none'; }, 300);
+    });
+    popover.addEventListener('mouseenter', () => { popover.style.display = 'block'; });
+    popover.addEventListener('mouseleave', () => {
+      popover.style.display = 'none';
+      open = false;
+    });
+  }
+
+  // ── Widget styles ─────────────────────────────────────────────────
+
   function getWidgetStyles(config: Config): string {
-    const isLight = config.theme === 'light';
+    const dark = config.theme === 'dark';
+    const bg = dark ? '#1a1a1a' : '#ffffff';
+    const fg = dark ? '#e0e0e0' : '#333333';
+    const border = dark ? '#333' : '#e5e5e5';
+    const shadow_c = dark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)';
+    const accent = dark ? '#4d94ff' : '#0066ff';
+    const logoBg = dark ? '#2a2a2a' : '#f0f0f0';
+    const logoFg = dark ? '#666' : '#999';
+
     return `
-      :host {
-        all: initial;
-        display: block;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        line-height: 1.4;
-      }
-      .lr-widget {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 16px;
-        background: ${isLight ? '#ffffff' : '#1a1a1a'};
-        color: ${isLight ? '#333333' : '#e0e0e0'};
-        border-top: 1px solid ${isLight ? '#e5e5e5' : '#333333'};
-        box-shadow: 0 -2px 8px rgba(0,0,0,${isLight ? '0.06' : '0.3'});
-        cursor: pointer;
-        user-select: none;
-      }
-      .lr-format-badge .lr-widget {
-        border-radius: 8px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-      }
-      .lr-content {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1;
-        min-width: 0;
-      }
-      .lr-logo {
-        width: 24px;
-        height: 24px;
-        border-radius: 4px;
-        background: ${isLight ? '#f0f0f0' : '#2a2a2a'};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 12px;
-        font-weight: 700;
-        color: ${isLight ? '#999' : '#666'};
-      }
-      .lr-info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-      .lr-name {
-        font-weight: 600;
-        font-size: 13px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .lr-pitch {
-        font-size: 12px;
-        opacity: 0.7;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .lr-cta {
-        flex-shrink: 0;
-        padding: 4px 12px;
-        border-radius: 4px;
-        background: ${isLight ? '#0066ff' : '#4d94ff'};
-        color: #ffffff;
-        font-size: 12px;
-        font-weight: 600;
-        text-decoration: none;
-        border: none;
-        cursor: pointer;
-        transition: opacity 0.15s;
-      }
-      .lr-cta:hover {
-        opacity: 0.85;
-      }
-      .lr-branding {
-        font-size: 10px;
-        opacity: 0.4;
-        margin-left: 8px;
-        white-space: nowrap;
-      }
+      :host { all: initial; display: block; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.4; }
+      .lr-widget { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: ${bg}; color: ${fg}; }
+      .lr-bar { border-top: 1px solid ${border}; box-shadow: 0 -2px 8px ${shadow_c}; cursor: pointer; user-select: none; }
+      .lr-card { border: 1px solid ${border}; border-radius: 8px; box-shadow: 0 2px 8px ${shadow_c}; }
+      .lr-content { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+      .lr-logo { width: 24px; height: 24px; border-radius: 4px; background: ${logoBg}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: ${logoFg}; }
+      .lr-info { display: flex; flex-direction: column; min-width: 0; }
+      .lr-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .lr-pitch { font-size: 12px; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .lr-cta { flex-shrink: 0; padding: 4px 12px; border-radius: 4px; background: ${accent}; color: #fff; font-size: 12px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: opacity 0.15s; }
+      .lr-cta:hover { opacity: 0.85; }
+      .lr-branding { font-size: 10px; opacity: 0.4; margin-left: 8px; white-space: nowrap; }
+
+      /* Badge format */
+      .lr-badge { position: relative; width: 100%; height: 100%; border-radius: 50%; cursor: pointer; user-select: none; }
+      .lr-badge-trigger { width: 100%; height: 100%; border-radius: 50%; background: ${accent}; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+      .lr-popover { display: none; position: fixed; bottom: 88px; right: 16px; width: 280px; background: ${bg}; border: 1px solid ${border}; border-radius: 8px; padding: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 1000000; }
+      .lr-popover .lr-content { margin-bottom: 8px; }
+      .lr-popover .lr-name { font-size: 14px; }
+      .lr-popover .lr-pitch { font-size: 13px; white-space: normal; }
     `;
   }
 
   function buildWidgetHTML(data: MatchData, config: Config): string {
     const m = data.match;
     const initial = m.name.charAt(0).toUpperCase();
+    const utm = `?utm_source=launchrelay&utm_medium=widget&utm_campaign=partner_${encodeURIComponent(m.id)}`;
+    const href = m.url + utm;
+
+    if (config.format === 'badge') {
+      return `
+        <div class="lr-badge-trigger">${initial}</div>
+        <div class="lr-popover">
+          <div class="lr-content">
+            <div class="lr-logo">${initial}</div>
+            <div class="lr-info">
+              <div class="lr-name">${escapeHTML(m.name)}</div>
+              <div class="lr-pitch">${escapeHTML(m.one_line_pitch)}</div>
+            </div>
+          </div>
+          <a class="lr-cta" href="${escapeHTML(href)}" target="_blank" rel="noopener">Learn More</a>
+          ${config.noBranding ? '' : '<div class="lr-branding" style="margin-top:4px;text-align:right">LaunchRelay</div>'}
+        </div>`;
+    }
+
     return `
       <div class="lr-content">
         <div class="lr-logo">${initial}</div>
@@ -233,7 +240,7 @@
           <span class="lr-pitch">${escapeHTML(m.one_line_pitch)}</span>
         </div>
       </div>
-      <a class="lr-cta" href="${escapeHTML(m.url)}" target="_blank" rel="noopener">Learn More →</a>
+      <a class="lr-cta" href="${escapeHTML(href)}" target="_blank" rel="noopener">Learn More →</a>
       ${config.noBranding ? '' : '<span class="lr-branding">LaunchRelay</span>'}
     `;
   }
@@ -244,7 +251,7 @@
     return div.innerHTML;
   }
 
-  // ── Viewport tracking (IntersectionObserver) ─────────────────────
+  // ── Viewport tracking ─────────────────────────────────────────────
 
   function startTracking(
     container: HTMLElement,
@@ -281,22 +288,40 @@
 
     observer.observe(container);
 
-    // CTA click tracking
     const shadow = container.shadowRoot;
-    if (shadow) {
-      const cta = shadow.querySelector('.lr-cta');
-      if (cta) {
-        cta.addEventListener('click', function (e: Event) {
+    if (!shadow) return;
+
+    if (config.format === 'badge') {
+      const trigger = shadow.querySelector('.lr-badge-trigger');
+      if (trigger) {
+        trigger.addEventListener('click', function () {
+          queueEvent('click', impressionId, beaconQueue, config, flushSoon);
+        });
+      }
+      const popoverCta = shadow.querySelector('.lr-popover .lr-cta');
+      if (popoverCta) {
+        popoverCta.addEventListener('click', function (e: Event) {
           queueEvent('click', impressionId, beaconQueue, config, flushSoon);
           const href = (this as HTMLAnchorElement).getAttribute('href');
           if (href && !e.defaultPrevented) {
             e.preventDefault();
-            setTimeout(() => {
-              window.open(href, '_blank');
-            }, 100);
+            setTimeout(() => { window.open(href, '_blank'); }, 100);
           }
         });
       }
+      return;
+    }
+
+    const cta = shadow.querySelector('.lr-cta');
+    if (cta) {
+      cta.addEventListener('click', function (e: Event) {
+        queueEvent('click', impressionId, beaconQueue, config, flushSoon);
+        const href = (this as HTMLAnchorElement).getAttribute('href');
+        if (href && !e.defaultPrevented) {
+          e.preventDefault();
+          setTimeout(() => { window.open(href, '_blank'); }, 100);
+        }
+      });
     }
   }
 
@@ -308,14 +333,8 @@
     flushSoon: () => void
   ): void {
     const wasEmpty = queue.length === 0;
-    queue.push({
-      type,
-      impression_id: impressionId,
-      timestamp: Date.now(),
-    });
-    if (wasEmpty) {
-      flushSoon();
-    }
+    queue.push({ type, impression_id: impressionId, timestamp: Date.now() });
+    if (wasEmpty) flushSoon();
   }
 
   // ── Beacon flushing ──────────────────────────────────────────────
@@ -329,19 +348,14 @@
     };
 
     try {
-      const blob = new Blob([JSON.stringify(batch)], {
-        type: 'application/json',
-      });
+      const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
       navigator.sendBeacon('/v1/impressions', blob);
     } catch {
-      // Silently fail — analytics loss is acceptable for the prototype
+      // silent
     }
   }
 
-  function startBeaconFlusher(
-    queue: BeaconEvent[],
-    config: Config
-  ): () => void {
+  function startBeaconFlusher(queue: BeaconEvent[], config: Config): () => void {
     let flushSoonTimer: ReturnType<typeof setTimeout> | null = null;
 
     function flushSoon() {
@@ -361,7 +375,7 @@
     return flushSoon;
   }
 
-  // ── API URL (CDN resolution) ─────────────────────────────────────
+  // ── API base URL ─────────────────────────────────────────────────
 
   function getApiBase(): string {
     const scripts = document.getElementsByTagName('script');
@@ -369,11 +383,8 @@
       const src = scripts[i].src;
       if (src && src.includes('widget.js')) {
         try {
-          const url = new URL(src);
-          return url.origin;
-        } catch {
-          continue;
-        }
+          return new URL(src).origin;
+        } catch { continue; }
       }
     }
     return 'https://api.launchrelay.com';
@@ -393,6 +404,11 @@
 
     fetchMatch(config)
       .then((data) => {
+        if (!data) {
+          renderPlaceholder(container, config);
+          container.setAttribute('data-lr-ready', 'true');
+          return;
+        }
         renderWidget(container, data, config);
         container.setAttribute('data-lr-ready', 'true');
         startTracking(container, data.impression_id, config, data, beaconQueue, flushSoon);
@@ -401,8 +417,6 @@
         container.style.display = 'none';
       });
   }
-
-  // ── Entry ────────────────────────────────────────────────────────
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
