@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LaunchRelay SDK Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    h1 { font-size: 24px; margin-bottom: 16px; }
+    p { font-size: 14px; line-height: 1.6; margin-bottom: 12px; color: #666; }
+    .content {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .spacer {
+      height: 200vh;
+      background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #999;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 16px;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #e5e5e5;
+      font-size: 13px;
+      font-family: monospace;
+    }
+    #results dt { font-weight: 600; margin-top: 8px; }
+    #results dd { margin-left: 16px; color: #666; }
+    .pass { color: #00a854; }
+    .fail { color: #d93025; }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <h1>LaunchRelay SDK — Test Page</h1>
+    <p>
+      This page tests the embed SDK prototype. Scroll down to see the widget
+      appear at the bottom of the viewport. The widget should render without
+      causing layout shift and track impressions after 1s of visibility.
+    </p>
+
+    <div id="results">
+      <h3>Verification Results</h3>
+      <dl id="checklist">
+        <dt>1. Reserved-height container created</dt>
+        <dd id="check-cls"><em>waiting...</em></dd>
+        <dt>2. Widget rendered in Shadow DOM</dt>
+        <dd id="check-shadow"><em>waiting...</em></dd>
+        <dt>3. Impression tracked after 1s visibility</dt>
+        <dd id="check-impression"><em>waiting...</em></dd>
+        <dt>4. Beacon batch sent (check console)</dt>
+        <dd id="check-beacon"><em>waiting...</em></dd>
+      </dl>
+    </div>
+
+    <div class="spacer">↓ Scroll past this big block to reach the widget ↓</div>
+  </div>
+
+  <script
+    src="../dist/widget.js"
+    data-startup-id="test-startup-001"
+    data-theme="light"
+    data-format="bar"
+    data-position="bottom"
+    async
+  ></script>
+
+  <script>
+    // Verification checks
+    setTimeout(function checkCLS() {
+      var slot = document.getElementById('lr-slot');
+      var checklist = document.getElementById('checklist');
+      if (slot) {
+        document.getElementById('check-cls').innerHTML =
+          '<span class="pass">✓ PASS</span> — #lr-slot exists, min-height: ' + slot.style.minHeight;
+      } else {
+        document.getElementById('check-cls').innerHTML =
+          '<span class="fail">✗ FAIL</span> — #lr-slot not found';
+      }
+    }, 500);
+
+    // Check Shadow DOM after render
+    setTimeout(function checkShadow() {
+      var slot = document.getElementById('lr-slot');
+      if (slot && slot.shadowRoot) {
+        document.getElementById('check-shadow').innerHTML =
+          '<span class="pass">✓ PASS</span> — Shadow DOM mode: ' + slot.shadowRoot.mode;
+      } else if (slot) {
+        document.getElementById('check-shadow').innerHTML =
+          '<span class="fail">✗ FAIL</span> — slot exists but no shadowRoot';
+      }
+    }, 1000);
+
+    // Monitor sendBeacon
+    var originalSendBeacon = navigator.sendBeacon;
+    navigator.sendBeacon = function(url, data) {
+      var check = document.getElementById('check-beacon');
+      try {
+        var parsed = JSON.parse(data);
+        check.innerHTML = '<span class="pass">✓ PASS</span> — Sent ' +
+          parsed.events.length + ' event(s) to ' + url +
+          ' (type: ' + parsed.events.map(function(e) { return e.type; }).join(', ') + ')';
+      } catch(e) {
+        check.innerHTML = '<span class="pass">✓ PASS</span> — Beacon sent to ' + url;
+      }
+      return originalSendBeacon.apply(this, arguments);
+    };
+  </script>
+</body>
+</html>

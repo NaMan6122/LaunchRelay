@@ -1,0 +1,15 @@
+{
+  "name": "@launchrelay/embed-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LaunchRelay embed widget SDK — prototype",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}
