@@ -104,13 +104,14 @@ test('AC6: beacon batch has correct structure', async ({ page }) => {
   expect(beacons.length).toBeGreaterThanOrEqual(1);
   const data = JSON.parse(beacons[0]);
 
-  expect(data.startup_id).toBe('test-startup-001');
+  expect(data.viewer_startup_id).toBe('test-startup-001');
   expect(Array.isArray(data.events)).toBe(true);
   expect(data.events.length).toBeGreaterThanOrEqual(1);
 
   const ev = data.events[0];
   expect(ev.type).toBe('impression');
   expect(typeof ev.impression_id).toBe('string');
+  expect(typeof ev.shown_startup_id).toBe('string');
   expect(typeof ev.timestamp).toBe('number');
 });
 

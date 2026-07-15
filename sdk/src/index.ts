@@ -28,11 +28,12 @@
   interface BeaconEvent {
     type: 'impression' | 'click';
     impression_id: string;
+    shown_startup_id: string;
     timestamp: number;
   }
 
   interface BeaconBatch {
-    startup_id: string;
+    viewer_startup_id: string;
     events: BeaconEvent[];
   }
 
@@ -270,7 +271,7 @@
           if (entry.isIntersecting) {
             if (!visibilityTimer && !impressionRecorded) {
               visibilityTimer = setTimeout(() => {
-                queueEvent('impression', impressionId, beaconQueue, config, flushSoon);
+                queueEvent('impression', impressionId, matchData.match.id, beaconQueue, config, flushSoon);
                 impressionRecorded = true;
                 visibilityTimer = null;
               }, 1000);
@@ -295,13 +296,13 @@
       const trigger = shadow.querySelector('.lr-badge-trigger');
       if (trigger) {
         trigger.addEventListener('click', function () {
-          queueEvent('click', impressionId, beaconQueue, config, flushSoon);
+          queueEvent('click', impressionId, matchData.match.id, beaconQueue, config, flushSoon);
         });
       }
       const popoverCta = shadow.querySelector('.lr-popover .lr-cta');
       if (popoverCta) {
         popoverCta.addEventListener('click', function (e: Event) {
-          queueEvent('click', impressionId, beaconQueue, config, flushSoon);
+          queueEvent('click', impressionId, matchData.match.id, beaconQueue, config, flushSoon);
           const href = (this as HTMLAnchorElement).getAttribute('href');
           if (href && !e.defaultPrevented) {
             e.preventDefault();
@@ -315,7 +316,7 @@
     const cta = shadow.querySelector('.lr-cta');
     if (cta) {
       cta.addEventListener('click', function (e: Event) {
-        queueEvent('click', impressionId, beaconQueue, config, flushSoon);
+        queueEvent('click', impressionId, matchData.match.id, beaconQueue, config, flushSoon);
         const href = (this as HTMLAnchorElement).getAttribute('href');
         if (href && !e.defaultPrevented) {
           e.preventDefault();
@@ -328,12 +329,13 @@
   function queueEvent(
     type: 'impression' | 'click',
     impressionId: string,
+    shownStartupId: string,
     queue: BeaconEvent[],
     config: Config,
     flushSoon: () => void
   ): void {
     const wasEmpty = queue.length === 0;
-    queue.push({ type, impression_id: impressionId, timestamp: Date.now() });
+    queue.push({ type, impression_id: impressionId, shown_startup_id: shownStartupId, timestamp: Date.now() });
     if (wasEmpty) flushSoon();
   }
 
@@ -343,7 +345,7 @@
     if (queue.length === 0) return;
 
     const batch: BeaconBatch = {
-      startup_id: config.startupId,
+      viewer_startup_id: config.startupId,
       events: queue.splice(0, queue.length),
     };
 
