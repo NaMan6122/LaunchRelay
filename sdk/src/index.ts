@@ -29,6 +29,7 @@
     type: 'impression' | 'click';
     impression_id: string;
     shown_startup_id: string;
+    referrer?: string;
     timestamp: number;
   }
 
@@ -271,7 +272,8 @@
           if (entry.isIntersecting) {
             if (!visibilityTimer && !impressionRecorded) {
               visibilityTimer = setTimeout(() => {
-                queueEvent('impression', impressionId, matchData.match.id, beaconQueue, config, flushSoon);
+                const ref = document.referrer || undefined;
+                queueEvent('impression', impressionId, matchData.match.id, beaconQueue, config, flushSoon, ref);
                 impressionRecorded = true;
                 visibilityTimer = null;
               }, 1000);
@@ -332,10 +334,13 @@
     shownStartupId: string,
     queue: BeaconEvent[],
     config: Config,
-    flushSoon: () => void
+    flushSoon: () => void,
+    referrer?: string
   ): void {
     const wasEmpty = queue.length === 0;
-    queue.push({ type, impression_id: impressionId, shown_startup_id: shownStartupId, timestamp: Date.now() });
+    const event: BeaconEvent = { type, impression_id: impressionId, shown_startup_id: shownStartupId, timestamp: Date.now() };
+    if (referrer) event.referrer = referrer;
+    queue.push(event);
     if (wasEmpty) flushSoon();
   }
 
