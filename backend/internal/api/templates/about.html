@@ -1,0 +1,138 @@
+{{define "title"}}About — LaunchRelay{{end}}
+{{define "description"}}Learn how LaunchRelay's reciprocal traffic network works. Category matching, fairness through traffic-weighted reciprocity, and active trust scoring.{{end}}
+
+{{define "content"}}
+<style>
+  .about-hero { text-align: center; padding: 48px 0 32px; }
+  .about-hero h1 { font-size: 36px; font-weight: 800; color: #0f172a; margin-bottom: 12px; letter-spacing: -0.5px; }
+  .about-hero p { font-size: 17px; color: #475569; max-width: 520px; margin: 0 auto; line-height: 1.6; }
+
+  .about-section { padding: 36px 0; border-top: 1px solid #e2e8f0; }
+  .about-section h2 { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 16px; }
+  .about-section h3 { font-size: 17px; font-weight: 600; color: #0f172a; margin-bottom: 8px; margin-top: 20px; }
+  .about-section p { font-size: 15px; color: #475569; line-height: 1.7; margin-bottom: 12px; }
+  .about-section ul { margin: 8px 0 16px 20px; }
+  .about-section li { font-size: 14px; color: #475569; line-height: 1.7; margin-bottom: 6px; }
+
+  .formula-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin: 16px 0; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; color: #334155; line-height: 1.8; overflow-x: auto; }
+
+  .faq-item { border-bottom: 1px solid #e2e8f0; padding: 16px 0; }
+  .faq-item:last-child { border-bottom: none; }
+  .faq-q { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
+  .faq-a { font-size: 14px; color: #475569; line-height: 1.6; }
+
+  .values-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+  .value-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; }
+  .value-card h3 { margin-top: 0; }
+  .value-card p { font-size: 13px; margin-bottom: 0; }
+
+  @media (max-width: 768px) {
+    .about-hero h1 { font-size: 26px; }
+    .values-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="about-hero">
+  <h1>Built for founders, by founders</h1>
+  <p>LaunchRelay is a free, reciprocal traffic-exchange network designed to solve the cold-start problem for indie founders.</p>
+</div>
+
+<div class="about-section" id="how-it-works">
+  <h2>The Core Mechanic</h2>
+  <p>The idea is simple: you display another founder's startup on your site, and yours gets shown on theirs. Every impression is reciprocal by design &mdash; the network only works when everyone participates.</p>
+  <p>But not all traffic exchanges are equal. Most classic traffic exchanges suffered from <strong>quality collapse</strong> &mdash; irrelevant matches, bot clicks, and members who quietly remove their embed after joining. LaunchRelay was built from day one to avoid that fate.</p>
+
+  <div class="values-grid">
+    <div class="value-card">
+      <h3>Relevance</h3>
+      <p>Category-aware matching ensures your widget shows startups in related spaces, not random pairings.</p>
+    </div>
+    <div class="value-card">
+      <h3>Fairness</h3>
+      <p>Traffic-weighted reciprocity means members who send more real traffic earn proportionally more back.</p>
+    </div>
+    <div class="value-card">
+      <h3>Trust</h3>
+      <p>Automated re-crawling detects removed embeds. Grace periods for honest mistakes, de-listing for churners.</p>
+    </div>
+  </div>
+</div>
+
+<div class="about-section" id="reciprocity">
+  <h2>How Reciprocity Works</h2>
+  <p>Rather than a flat "one embed = one placement," each startup accrues a <strong>reciprocity balance</strong>:</p>
+  <div class="formula-box">
+    balance = impressions_given (verified) &minus; impressions_received
+  </div>
+  <ul>
+    <li><strong>Positive balance</strong> (giving more than receiving) &rarr; prioritized for placement on other sites. You're "owed" visibility.</li>
+    <li><strong>Negative balance</strong> &rarr; deprioritized until you catch back up.</li>
+  </ul>
+  <p>This naturally rewards high-traffic members without requiring any payment or bidding system.</p>
+
+  <h3>Matching Score</h3>
+  <p>When the engine picks a partner to show on your site, it scores candidates using:</p>
+  <div class="formula-box">
+    score = 0.4 &times; category_overlap<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + 0.3 &times; normalize(balance)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + 0.2 &times; trust_score<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + 0.1 &times; diversity_penalty
+  </div>
+  <p>Weights are tunable and will be adjusted based on early network CTR data.</p>
+</div>
+
+<div class="about-section" id="trust">
+  <h2>Trust &amp; Safety</h2>
+  <p>The network is protected by multiple layers of automated defense:</p>
+
+  <h3>Embed Verification</h3>
+  <p>A background job periodically fetches each member's site and confirms the widget script is still present. Absence triggers a grace period notification, then automatic de-listing.</p>
+
+  <h3>Viewport-Only Impressions</h3>
+  <p>Impressions only count after 1 second of continuous visibility inside the viewport (via IntersectionObserver). Hidden or off-screen widgets don't generate credit.</p>
+
+  <h3>Rate Limiting</h3>
+  <p>Per-endpoint rate limits prevent abuse: 10 req/min for match requests, 60 req/min for impressions, 30 req/min for clicks.</p>
+
+  <h3>Trust Score</h3>
+  <p>Every startup has a 0&ndash;1 trust score computed from domain age, re-crawl pass rate, and review flags. Low-trust members are deprioritized in matching.</p>
+</div>
+
+<div class="about-section" id="faq">
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <div class="faq-q">Is LaunchRelay really free?</div>
+    <div class="faq-a">Yes, the core reciprocal exchange is free forever. We may offer optional paid features in the future (priority placement, deeper analytics), but the core mechanic will always be free.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Will the widget slow down my site?</div>
+    <div class="faq-a">No. The widget is under 3KB gzipped, loads asynchronously, uses Shadow DOM for style isolation, and reserves a fixed-height slot to prevent layout shift. Your Core Web Vitals stay green.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What happens if I remove the widget?</div>
+    <div class="faq-a">Our automated re-crawl will detect the removal. You'll get a grace period to fix it (in case it was accidental). If the widget isn't restored, your listing gets de-listed from the network.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Can I choose which startups appear on my site?</div>
+    <div class="faq-a">Not individually, but you can exclude specific categories or domains you don't want to be matched with. The matching engine handles the rest, balancing relevance, reciprocity, and diversity.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">How is this different from an ad network?</div>
+    <div class="faq-a">Ad networks sell impressions to the highest bidder. LaunchRelay is reciprocal &mdash; you only appear on other founders' sites, and only if you're also showing someone else. The audience is self-selecting and relevant.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What platforms does the widget work on?</div>
+    <div class="faq-a">Anywhere you can paste a script tag &mdash; static HTML, Next.js, Webflow, WordPress, Shopify, Ghost, and more. No framework dependencies.</div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:40px 0">
+  <a href="/apply" class="btn btn-primary btn-large">Join the Network &rarr;</a>
+</div>
+{{end}}
