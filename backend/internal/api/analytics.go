@@ -3,13 +3,15 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type ImpressionEvent struct {
-	ImpressionID string `json:"impression_id"`
+	ImpressionID   string `json:"impression_id"`
 	ShownStartupID string `json:"shown_startup_id"`
 	Verified       bool   `json:"verified"`
+	Referrer       string `json:"referrer,omitempty"`
 	Timestamp      string `json:"timestamp"`
 }
 
@@ -32,6 +34,43 @@ type AcceptedResponse struct {
 	Accepted int `json:"accepted"`
 }
 
+// detectDeviceType returns desktop/mobile/tablet based on User-Agent string.
+func detectDeviceType(ua string) string {
+	if ua == "" {
+		return "desktop"
+	}
+	uaLower := strings.ToLower(ua)
+	if strings.Contains(uaLower, "mobile") || strings.Contains(uaLower, "iphone") || strings.Contains(uaLower, "ipod") {
+		return "mobile"
+	}
+	if strings.Contains(uaLower, "ipad") || strings.Contains(uaLower, "tablet") {
+		return "tablet"
+	}
+	if strings.Contains(uaLower, "android") && !strings.Contains(uaLower, "mobile") {
+		return "tablet"
+	}
+	return "desktop"
+}
+
+// detectCountry attempts a rough country estimate from Accept-Language.
+func detectCountry(acceptLang string) string {
+	if acceptLang == "" {
+		return ""
+	}
+	// Accept-Language: en-US,en;q=0.9 → "US"
+	tag := strings.Split(acceptLang, ",")[0]
+	tag = strings.Split(tag, ";")[0]
+	parts := strings.Split(tag, "-")
+	if len(parts) < 2 {
+		return ""
+	}
+	country := strings.ToUpper(parts[1])
+	if len(country) != 2 {
+		return ""
+	}
+	return country
+}
+
 func (s *Server) handleBatchImpressions() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req ImpressionBatchRequest
@@ -50,6 +89,9 @@ func (s *Server) handleBatchImpressions() http.HandlerFunc {
 			return
 		}
 
+		deviceType := detectDeviceType(r.UserAgent())
+		country := detectCountry(r.Header.Get("Accept-Language"))
+
 		accepted := 0
 		for _, ev := range req.Events {
 			if ev.ImpressionID == "" || ev.ShownStartupID == "" {
@@ -61,11 +103,16 @@ func (s *Server) handleBatchImpressions() http.HandlerFunc {
 				ts = time.Now().UTC()
 			}
 
+			referrer := ev.Referrer
+			if referrer == "" {
+				referrer = r.Referer()
+			}
+
 			_, err = s.db.Exec(`
-				INSERT INTO impressions (id, viewer_startup_id, shown_startup_id, verified, timestamp)
-				VALUES ($1, $2, $3, $4, $5)
+				INSERT INTO impressions (id, viewer_startup_id, shown_startup_id, verified, country, device_type, referrer, timestamp)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT (id) DO NOTHING
-			`, ev.ImpressionID, req.ViewerStartupID, ev.ShownStartupID, ev.Verified, ts)
+			`, ev.ImpressionID, req.ViewerStartupID, ev.ShownStartupID, ev.Verified, country, deviceType, referrer, ts)
 			if err == nil {
 				accepted++
 			}
