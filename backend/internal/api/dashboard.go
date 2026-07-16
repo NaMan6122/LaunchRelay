@@ -8,11 +8,34 @@ import (
 )
 
 type DashboardResponse struct {
-	StartupID string            `json:"startup_id"`
-	Overview  DashboardOverview `json:"overview"`
-	Reciprocity ReciprocityInfo `json:"reciprocity"`
-	RecentMatches []RecentMatch `json:"recent_matches"`
-	Trust       DashboardTrust  `json:"trust"`
+	StartupID     string            `json:"startup_id"`
+	Overview      DashboardOverview `json:"overview"`
+	Reciprocity   ReciprocityInfo   `json:"reciprocity"`
+	RecentMatches []RecentMatch     `json:"recent_matches"`
+	Trust         DashboardTrust    `json:"trust"`
+	Breakdowns    *Breakdowns       `json:"breakdowns,omitempty"`
+}
+
+type Breakdowns struct {
+	ByDevice  []DeviceBreakdown  `json:"by_device"`
+	ByReferrer []ReferrerBreakdown `json:"by_referrer"`
+	ByCountry  []CountryBreakdown `json:"by_country"`
+}
+
+type DeviceBreakdown struct {
+	DeviceType string  `json:"device_type"`
+	Impressions int    `json:"impressions"`
+	Percentage  float64 `json:"percentage"`
+}
+
+type ReferrerBreakdown struct {
+	Source      string `json:"source"`
+	Impressions int    `json:"impressions"`
+}
+
+type CountryBreakdown struct {
+	Country     string `json:"country"`
+	Impressions int    `json:"impressions"`
 }
 
 type DashboardOverview struct {
@@ -100,6 +123,88 @@ func (s *Server) handleDashboard() http.HandlerFunc {
 				rows.Scan(&m.StartupID, &m.Name, &m.Impressions, &m.Clicks)
 				resp.RecentMatches = append(resp.RecentMatches, m)
 			}
+		}
+
+		// Breakdowns
+		if resp.Overview.Impressions7d > 0 {
+			breakdowns := &Breakdowns{}
+			total7d := float64(resp.Overview.Impressions7d)
+
+			// By device type
+			func() {
+				dRows, err := s.db.Query(`
+					SELECT COALESCE(device_type, 'desktop') as device_type, COUNT(*) as cnt
+					FROM impressions
+					WHERE viewer_startup_id = $1 AND timestamp >= $2
+					GROUP BY device_type
+					ORDER BY cnt DESC
+				`, startupID, sevenDaysAgo)
+				if err != nil {
+					return
+				}
+				defer dRows.Close()
+				for dRows.Next() {
+					var d DeviceBreakdown
+					dRows.Scan(&d.DeviceType, &d.Impressions)
+					if total7d > 0 {
+						d.Percentage = float64(d.Impressions) / total7d * 100
+					}
+					breakdowns.ByDevice = append(breakdowns.ByDevice, d)
+				}
+			}()
+			if breakdowns.ByDevice == nil {
+				breakdowns.ByDevice = []DeviceBreakdown{}
+			}
+
+			// By referrer
+			func() {
+				rRows, err := s.db.Query(`
+					SELECT COALESCE(NULLIF(referrer, ''), 'direct') as source, COUNT(*) as cnt
+					FROM impressions
+					WHERE viewer_startup_id = $1 AND timestamp >= $2
+					GROUP BY source
+					ORDER BY cnt DESC
+					LIMIT 10
+				`, startupID, sevenDaysAgo)
+				if err != nil {
+					return
+				}
+				defer rRows.Close()
+				for rRows.Next() {
+					var r ReferrerBreakdown
+					rRows.Scan(&r.Source, &r.Impressions)
+					breakdowns.ByReferrer = append(breakdowns.ByReferrer, r)
+				}
+			}()
+			if breakdowns.ByReferrer == nil {
+				breakdowns.ByReferrer = []ReferrerBreakdown{}
+			}
+
+			// By country
+			func() {
+				cRows, err := s.db.Query(`
+					SELECT COALESCE(NULLIF(country, ''), 'unknown') as country, COUNT(*) as cnt
+					FROM impressions
+					WHERE viewer_startup_id = $1 AND timestamp >= $2
+					GROUP BY country
+					ORDER BY cnt DESC
+					LIMIT 10
+				`, startupID, sevenDaysAgo)
+				if err != nil {
+					return
+				}
+				defer cRows.Close()
+				for cRows.Next() {
+					var c CountryBreakdown
+					cRows.Scan(&c.Country, &c.Impressions)
+					breakdowns.ByCountry = append(breakdowns.ByCountry, c)
+				}
+			}()
+			if breakdowns.ByCountry == nil {
+				breakdowns.ByCountry = []CountryBreakdown{}
+			}
+
+			resp.Breakdowns = breakdowns
 		}
 
 		// Trust info
