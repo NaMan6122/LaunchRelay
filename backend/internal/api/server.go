@@ -40,6 +40,10 @@ func New(db *sqlx.DB) *Server {
 func (s *Server) registerRoutes() {
 	s.router.Get("/v1/health", s.handleHealth())
 
+	// Auth routes
+	s.router.Post("/v1/auth/magic-link", s.handleSendMagicLink())
+	s.router.Post("/v1/auth/verify", s.handleVerifyMagicLink())
+
 	// Rate-limited routes
 	s.router.Group(func(r chi.Router) {
 		r.Use(s.rateLimit)
