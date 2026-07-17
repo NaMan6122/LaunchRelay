@@ -31,6 +31,8 @@ run:
 	go run ./cmd/api/
 
 build:
+	cp ../sdk/dist/widget.js internal/api/static/sdk/widget.js
+	cp ../sdk/dist/pixel.js internal/api/static/sdk/pixel.js
 	go build -o bin/$(APP_NAME) ./cmd/api/
 
 lint:

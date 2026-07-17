@@ -9,12 +9,15 @@ import (
 )
 
 type DirectoryEntry struct {
-	Slug       string   `json:"slug"`
-	Name       string   `json:"name"`
-	Pitch      string   `json:"one_line_pitch"`
-	Categories []string `json:"categories"`
-	LogoURL    string   `json:"logo_url,omitempty"`
-	JoinedAt   string   `json:"joined_at"`
+	Slug            string   `json:"slug"`
+	Name            string   `json:"name"`
+	Pitch           string   `json:"one_line_pitch"`
+	Categories      []string `json:"categories"`
+	LogoURL         string   `json:"logo_url,omitempty"`
+	JoinedAt        string   `json:"joined_at"`
+	TrustScore      float64  `json:"trust_score"`
+	VerifiedTraffic bool     `json:"verified_traffic"`
+	BoostLevel      int      `json:"boost_level"`
 }
 
 type DirectoryResponse struct {
@@ -71,7 +74,7 @@ func (s *Server) handleListDirectory() http.HandlerFunc {
 		s.db.Get(&total, countQuery, countArgs...)
 
 		offset := (page - 1) * limit
-		listQuery := `SELECT s.slug, s.name, s.one_line_pitch, COALESCE(s.logo_url, ''), s.created_at
+		listQuery := `SELECT s.slug, s.name, s.one_line_pitch, COALESCE(s.logo_url, ''), s.created_at, s.trust_score, s.verified_traffic_tier, s.boost_level
 			FROM startups s WHERE s.status = 'active'`
 		listArgs := []any{}
 
@@ -83,7 +86,7 @@ func (s *Server) handleListDirectory() http.HandlerFunc {
 			listArgs = append(listArgs, category)
 		}
 
-		listQuery += ` ORDER BY s.created_at DESC LIMIT ? OFFSET ?`
+		listQuery += ` ORDER BY s.boost_level DESC, s.created_at DESC LIMIT ? OFFSET ?`
 		listArgs = append(listArgs, limit, offset)
 
 		// Convert ? to $N for PostgreSQL
@@ -97,7 +100,7 @@ func (s *Server) handleListDirectory() http.HandlerFunc {
 			defer rows.Close()
 			for rows.Next() {
 				var e DirectoryEntry
-				rows.Scan(&e.Slug, &e.Name, &e.Pitch, &e.LogoURL, &e.JoinedAt)
+				rows.Scan(&e.Slug, &e.Name, &e.Pitch, &e.LogoURL, &e.JoinedAt, &e.TrustScore, &e.VerifiedTraffic, &e.BoostLevel)
 				entries = append(entries, e)
 			}
 		}

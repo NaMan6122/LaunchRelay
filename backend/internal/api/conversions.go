@@ -53,6 +53,9 @@ func (s *Server) handleConversion() http.HandlerFunc {
 			return
 		}
 
+		// Fire webhook for the shown startup (they got a conversion)
+		s.fireWebhooks(shownStartupID, "conversion", req.ImpressionID, viewerStartupID, shownStartupID)
+
 		writeOK(w, ConversionResponse{Accepted: true})
 	}
 }

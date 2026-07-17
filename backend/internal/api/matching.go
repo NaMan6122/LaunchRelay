@@ -32,6 +32,7 @@ type dbStartup struct {
 	Balance    int            `db:"balance"`
 	TrustScore float64        `db:"trust_score"`
 	Rank       int            `db:"traffic_rank"`
+	BoostLevel int            `db:"boost_level"`
 }
 
 func (s *Server) handleMatch() http.HandlerFunc {
@@ -95,17 +96,18 @@ func (s *Server) handleMatch() http.HandlerFunc {
 		candidates := make([]matching.Startup, len(startupRows))
 		for i, d := range startupRows {
 			cats, _ := loadCategories(s.db, d.ID)
-			candidates[i] = matching.Startup{
-				ID:          d.ID,
-				Name:        d.Name,
-				Categories:  cats,
-				Balance:     d.Balance,
-				TrustScore:  d.TrustScore,
-				TrafficRank: d.Rank,
-				Pitch:       d.Pitch,
-				URL:         d.URL,
-				LogoURL:     d.LogoURL.String,
-			}
+		candidates[i] = matching.Startup{
+			ID:          d.ID,
+			Name:        d.Name,
+			Categories:  cats,
+			Balance:     d.Balance,
+			TrustScore:  d.TrustScore,
+			TrafficRank: d.Rank,
+			Pitch:       d.Pitch,
+			URL:         d.URL,
+			LogoURL:     d.LogoURL.String,
+			BoostLevel:  d.BoostLevel,
+		}
 		}
 
 		requesterCats, _ := loadCategories(s.db, startupID)
@@ -140,11 +142,13 @@ func loadEligible(db *sqlx.DB, startupID string) ([]dbStartup, error) {
 	var rows []dbStartup
 	err := db.Select(&rows, `
 		SELECT s.id, s.name, s.url, s.one_line_pitch, s.logo_url,
-		       COALESCE(lr.balance, 0) as balance, s.trust_score, s.traffic_rank
+		       COALESCE(lr.balance, 0) as balance, s.trust_score, s.traffic_rank,
+		       s.boost_level
 		FROM startups s
 		LEFT JOIN reciprocity_ledger lr ON lr.startup_id = s.id
 			AND lr.period_end = (SELECT MAX(period_end) FROM reciprocity_ledger WHERE startup_id = s.id)
 		WHERE s.status = 'active' AND s.id <> $1
+		AND (s.boost_expires_at IS NULL OR s.boost_expires_at > NOW())
 		AND EXISTS (
 			SELECT 1 FROM startup_categories sc
 			WHERE sc.startup_id = s.id

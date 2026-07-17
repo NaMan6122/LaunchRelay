@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, type DirectoryEntry } from '../api'
+import Badge from '../components/Badge'
+import AnimatedSection from '../components/AnimatedSection'
+
+function trustLabel(score: number): string {
+  if (score >= 0.8) return 'High Trust'
+  if (score >= 0.5) return 'Trusting'
+  return 'New'
+}
+
+function trustVariant(score: number): 'green' | 'yellow' | 'gray' {
+  if (score >= 0.8) return 'green'
+  if (score >= 0.5) return 'yellow'
+  return 'gray'
+}
 
 export default function Directory() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -70,22 +84,27 @@ export default function Directory() {
         </div>
       ) : (
         <>
-          <div className="directory-grid">
-            {entries.map((e) => (
-              <Link to={`/directory/${e.slug}`} key={e.slug} className="dir-card">
-                <div className="dir-card-avatar">{e.name.charAt(0).toUpperCase()}</div>
-                <div className="dir-card-info">
-                  <h3>{e.name}</h3>
-                  <p>{e.one_line_pitch}</p>
-                  <div className="dir-card-tags">
-                    {e.categories.map((c) => (
-                      <span key={c} className="badge badge-blue">{c}</span>
-                    ))}
+          <AnimatedSection>
+            <div className="directory-grid">
+              {entries.map((e) => (
+                <Link to={`/directory/${e.slug}`} key={e.slug} className="dir-card">
+                  <div className="dir-card-avatar">{e.name.charAt(0).toUpperCase()}</div>
+                  <div className="dir-card-info">
+                    <h3>{e.name}</h3>
+                    <p>{e.one_line_pitch}</p>
+                    <div className="dir-card-tags">
+                      {e.categories.map((c) => (
+                        <span key={c} className="badge badge-blue">{c}</span>
+                      ))}
+                      <Badge variant={trustVariant(e.trust_score)}>{trustLabel(e.trust_score)}</Badge>
+                      {e.verified_traffic && <Badge variant="blue">✓ Verified Traffic</Badge>}
+                      {e.boost_level > 0 && <Badge variant="yellow">★ Featured</Badge>}
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          </AnimatedSection>
 
           {totalPages > 1 && (
             <div className="pagination">

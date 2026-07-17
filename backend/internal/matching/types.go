@@ -12,6 +12,7 @@ type Startup struct {
 	Pitch        string
 	URL          string
 	LogoURL      string
+	BoostLevel   int
 }
 
 // Weights for the scoring function
@@ -21,6 +22,7 @@ type Weights struct {
 	Trust        float64
 	Diversity    float64
 	SizeMismatch float64
+	BoostBonus   float64
 }
 
 // DefaultWeights returns the default weight configuration
@@ -31,6 +33,7 @@ func DefaultWeights() Weights {
 		Trust:        0.20,
 		Diversity:    0.15,
 		SizeMismatch: 0.10,
+		BoostBonus:   0.10,
 	}
 }
 
@@ -42,6 +45,7 @@ func ColdStartWeights() Weights {
 		Trust:        0.15,
 		Diversity:    0.10,
 		SizeMismatch: 0.05,
+		BoostBonus:   0.10,
 	}
 }
 

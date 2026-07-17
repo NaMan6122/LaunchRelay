@@ -22,6 +22,9 @@
         <p style="font-size:13px;color:#666;margin-top:2px">{{.Pitch}}</p>
         <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
           {{range .Categories}}<span class="badge" style="background:#f0f0f0;color:#666">{{.}}</span>{{end}}
+          <span class="{{trustBadgeClass .TrustScore}}" style="font-size:11px">{{trustLabel .TrustScore}}</span>
+          {{if .VerifiedTraffic}}<span class="badge" style="background:#dbeafe;color:#2563eb;font-size:11px">✓ Verified Traffic</span>{{end}}
+          {{if gt .BoostLevel 0}}<span class="badge" style="background:#fef3c7;color:#d97706;font-size:11px">★ Featured</span>{{end}}
         </div>
       </div>
     </div>

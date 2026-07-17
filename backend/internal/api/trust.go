@@ -15,11 +15,13 @@ type TrustScoreResponse struct {
 }
 
 type TrustBreakdown struct {
-	Baseline       float64 `json:"baseline"`
-	DomainAgeBonus float64 `json:"domain_age_bonus"`
-	CrawlPassRate  float64 `json:"crawl_pass_rate"`
-	PassRateAdjust float64 `json:"pass_rate_adjustment"`
-	ActiveFlags    int     `json:"active_flags"`
+	Baseline         float64 `json:"baseline"`
+	DomainAgeBonus   float64 `json:"domain_age_bonus"`
+	CrawlPassRate    float64 `json:"crawl_pass_rate"`
+	PassRateAdjust   float64 `json:"pass_rate_adjustment"`
+	ActiveFlags      int     `json:"active_flags"`
+	TrafficVerified  bool    `json:"traffic_verified"`
+	TrafficBonus     float64 `json:"traffic_bonus"`
 }
 
 func (s *Server) handleTrustScore() http.HandlerFunc {
@@ -72,6 +74,14 @@ func computeTrustScore(s *Server, startupID string) (float64, TrustBreakdown) {
 		b.PassRateAdjust = (b.CrawlPassRate - 0.8) * 0.3
 	}
 
+	// Traffic verification bonus
+	s.db.Get(&b.TrafficVerified, `
+		SELECT verified_traffic_tier FROM startups WHERE id = $1
+	`, startupID)
+	if b.TrafficVerified {
+		b.TrafficBonus = 0.15
+	}
+
 	// Active manual review flags
 	s.db.Get(&b.ActiveFlags, `
 		SELECT COUNT(*) FROM trust_signals
@@ -79,7 +89,7 @@ func computeTrustScore(s *Server, startupID string) (float64, TrustBreakdown) {
 		AND timestamp >= NOW() - INTERVAL '30 days'
 	`, startupID)
 
-	score := b.Baseline + b.DomainAgeBonus + b.PassRateAdjust - float64(b.ActiveFlags)*0.1
+	score := b.Baseline + b.DomainAgeBonus + b.PassRateAdjust + b.TrafficBonus - float64(b.ActiveFlags)*0.1
 	score = math.Max(0, math.Min(1, score))
 
 	return score, b

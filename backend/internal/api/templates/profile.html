@@ -24,7 +24,8 @@
       <tr><th>Impressions</th><td>{{.Impressions30d}}</td></tr>
       <tr><th>Clicks</th><td>{{.Clicks30d}}</td></tr>
       {{if gt .Impressions30d 0}}<tr><th>CTR</th><td>{{printf "%.2f" .CTR}}%</td></tr>{{end}}
-      <tr><th>Trust Score</th><td>{{printf "%.3f" .TrustScore}}</td></tr>
+      <tr><th>Trust Score</th><td><span class="{{trustBadgeClass .TrustScore}}">{{printf "%.3f" .TrustScore}}</span> <span style="font-size:12px;color:#666">{{trustLabel .TrustScore}}</span>{{if .VerifiedTraffic}} <span class="badge" style="background:#dbeafe;color:#2563eb">✓ Verified Traffic</span>{{end}}</td></tr>
+      <tr><td colspan="2" style="font-size:12px;color:#999;padding-top:4px">Based on widget activity, impression volume, and optional traffic verification.</td></tr>
     </table>
   </div>
 

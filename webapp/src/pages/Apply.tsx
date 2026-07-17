@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth'
 import { api, type Category } from '../api'
+import GlassCard from '../components/GlassCard'
 
 export default function Apply() {
   const { user } = useAuth()
@@ -50,24 +51,24 @@ export default function Apply() {
   if (result) {
     return (
       <section className="page-centered">
-        <div className="result-card">
+        <GlassCard glow>
           <div className="result-icon">&#x2705;</div>
-          <h2>Application submitted!</h2>
-          <p>Your startup is <strong>pending review</strong>. You&apos;ll be notified once it&apos;s approved.</p>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Application submitted!</h2>
+          <p style={{ color: 'var(--slate-500)', marginBottom: 28 }}>Your startup is <strong>pending review</strong>. You&apos;ll be notified once it&apos;s approved.</p>
           <div className="embed-preview">
             <p className="text-muted">Your embed code:</p>
             <code className="embed-code">{result.embed_code}</code>
           </div>
-        </div>
+        </GlassCard>
       </section>
     )
   }
 
   return (
     <section className="page-centered">
-      <div className="apply-card">
-        <h2>Apply to LaunchRelay</h2>
-        <p>Join the network and start getting real visitors.</p>
+      <GlassCard glow>
+        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Apply to LaunchRelay</h2>
+        <p style={{ color: 'var(--slate-500)', marginBottom: 28 }}>Join the network and start getting real visitors.</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="name">Startup name</label>
@@ -107,7 +108,7 @@ export default function Apply() {
             {loading ? 'Submitting...' : 'Apply Now'}
           </button>
         </form>
-      </div>
+      </GlassCard>
     </section>
   )
 }

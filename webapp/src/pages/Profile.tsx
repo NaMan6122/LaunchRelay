@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api, type StartupProfile } from '../api'
+import GlassCard from '../components/GlassCard'
+import TrustBadge from '../components/TrustBadge'
+import AnimatedSection from '../components/AnimatedSection'
 
 export default function Profile() {
   const { slug } = useParams<{ slug: string }>()
@@ -21,6 +24,10 @@ export default function Profile() {
   if (error) return <div className="empty"><h3>{error}</h3><Link to="/directory" className="btn btn-outline">Back to Directory</Link></div>
   if (!profile) return null
 
+  const ctr = profile.stats.impressions_30d > 0
+    ? ((profile.stats.clicks_30d / profile.stats.impressions_30d) * 100).toFixed(2)
+    : '0.00'
+
   return (
     <>
       <section className="profile-header">
@@ -33,38 +40,51 @@ export default function Profile() {
               <Link key={c} to={`/directory?category=${c}`} className="badge badge-blue">{c}</Link>
             ))}
           </div>
-          <a href={profile.url} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
-            Visit Website &rarr;
-          </a>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <a href={profile.url} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+              Visit Website →
+            </a>
+          </div>
+          <TrustBadge score={profile.trust_score} verified={profile.verified_traffic} boosted={profile.boost_level > 0} />
         </div>
       </section>
 
-      <div className="profile-stats-grid">
-        <div className="kpi">
-          <div className="value">{profile.stats.impressions_30d.toLocaleString()}</div>
-          <div className="label">Impressions (30d)</div>
+      <AnimatedSection>
+        <div className="profile-stats-grid">
+          <GlassCard>
+            <div className="kpi-card-content">
+              <div className="value">{profile.stats.impressions_30d.toLocaleString()}</div>
+              <div className="label">Impressions (30d)</div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div className="kpi-card-content">
+              <div className="value">{profile.stats.clicks_30d.toLocaleString()}</div>
+              <div className="label">Clicks (30d)</div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div className="kpi-card-content">
+              <div className="value">{ctr}%</div>
+              <div className="label">CTR</div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div className="kpi-card-content">
+              <div className="value">{new Date(profile.joined_at).toLocaleDateString()}</div>
+              <div className="label">Joined</div>
+            </div>
+          </GlassCard>
         </div>
-        <div className="kpi">
-          <div className="value">{profile.stats.clicks_30d.toLocaleString()}</div>
-          <div className="label">Clicks (30d)</div>
-        </div>
-        <div className="kpi">
-          <div className="value">{(profile.trust_score * 100).toFixed(0)}%</div>
-          <div className="label">Trust Score</div>
-        </div>
-        <div className="kpi">
-          <div className="value">{new Date(profile.joined_at).toLocaleDateString()}</div>
-          <div className="label">Joined</div>
-        </div>
-      </div>
+      </AnimatedSection>
 
-      <div className="card">
-        <h2>About {profile.name}</h2>
-        <p>{profile.one_line_pitch}</p>
-        <p className="text-muted" style={{ marginTop: 16 }}>
-          <a href={profile.url} target="_blank" rel="noopener noreferrer">{profile.url}</a>
+      <GlassCard>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--navy)' }}>About {profile.name}</h2>
+        <p style={{ color: 'var(--slate-600)', lineHeight: 1.7 }}>{profile.one_line_pitch}</p>
+        <p style={{ marginTop: 16 }}>
+          <a href={profile.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue-600)' }}>{profile.url}</a>
         </p>
-      </div>
+      </GlassCard>
     </>
   )
 }

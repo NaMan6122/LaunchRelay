@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api, type DashboardData } from '../api'
 import KpiCard from '../components/KpiCard'
+import GlassCard from '../components/GlassCard'
+import TrustBadge from '../components/TrustBadge'
+import AnimatedSection from '../components/AnimatedSection'
 
 export default function Dashboard() {
   const { startupId } = useParams<{ startupId: string }>()
@@ -29,140 +32,153 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <h1>Dashboard</h1>
         <div className="trust-indicator">
-          <span className={`badge ${trust.status === 'active' ? 'badge-green' : trust.status === 'grace_period' ? 'badge-yellow' : 'badge-red'}`}>
-            {trust.status}
-          </span>
-          <span className="trust-score">Trust: {(trust.score * 100).toFixed(0)}%</span>
+          <TrustBadge score={trust.score} />
         </div>
       </div>
 
-      <div className="kpi-grid">
-        <KpiCard value={overview.impressions_7d.toLocaleString()} label="Impressions (7d)" />
-        <KpiCard value={overview.clicks_7d.toLocaleString()} label="Clicks (7d)" />
-        <KpiCard value={(overview.ctr * 100).toFixed(2) + '%'} label="CTR" />
-        <KpiCard value={overview.reciprocity_balance > 0 ? `+${overview.reciprocity_balance}` : String(overview.reciprocity_balance)} label="Reciprocity Balance" />
-      </div>
-
-      <div className="grid-2">
-        <div className="card">
-          <h2>Reciprocity</h2>
-          <div className="reciprocity-detail">
-            <div className="reciprocity-row">
-              <span>Impressions given</span>
-              <strong>{reciprocity.impressions_given.toLocaleString()}</strong>
-            </div>
-            <div className="reciprocity-row">
-              <span>Impressions received</span>
-              <strong>{reciprocity.impressions_received.toLocaleString()}</strong>
-            </div>
-            <div className="reciprocity-row">
-              <span>Balance</span>
-              <strong className={reciprocity.balance >= 0 ? 'positive' : 'negative'}>
-                {reciprocity.balance > 0 ? '+' : ''}{reciprocity.balance}
-              </strong>
-            </div>
-          </div>
+      <AnimatedSection>
+        <div className="kpi-grid">
+          <KpiCard value={overview.impressions_7d.toLocaleString()} label="Impressions (7d)" />
+          <KpiCard value={overview.clicks_7d.toLocaleString()} label="Clicks (7d)" />
+          <KpiCard value={(overview.ctr * 100).toFixed(2) + '%'} label="CTR" />
+          <KpiCard value={overview.reciprocity_balance > 0 ? `+${overview.reciprocity_balance}` : String(overview.reciprocity_balance)} label="Reciprocity Balance" />
+          {overview.conversions_7d !== undefined && (
+            <KpiCard value={overview.conversions_7d.toLocaleString()} label="Conversions (7d)" />
+          )}
+          {overview.conversion_rate !== undefined && overview.conversion_rate > 0 && (
+            <KpiCard value={overview.conversion_rate.toFixed(2) + '%'} label="Conversion Rate" />
+          )}
         </div>
+      </AnimatedSection>
 
-        <div className="card">
-          <h2>Trust Status</h2>
-          <div className="trust-detail">
-            <div className="trust-row">
-              <span>Status</span>
-              <span className={`badge ${trust.status === 'active' ? 'badge-green' : trust.status === 'grace_period' ? 'badge-yellow' : 'badge-red'}`}>
-                {trust.status}
-              </span>
-            </div>
-            <div className="trust-row">
-              <span>Trust score</span>
-              <strong>{(trust.score * 100).toFixed(0)}%</strong>
-            </div>
-            {trust.last_verified_at && (
-              <div className="trust-row">
-                <span>Last verified</span>
-                <span>{new Date(trust.last_verified_at).toLocaleDateString()}</span>
+      <AnimatedSection delay={100}>
+        <div className="grid-2">
+          <GlassCard>
+            <h2>Reciprocity</h2>
+            <div className="reciprocity-detail">
+              <div className="reciprocity-row">
+                <span>Impressions given</span>
+                <strong>{reciprocity.impressions_given.toLocaleString()}</strong>
               </div>
-            )}
-          </div>
+              <div className="reciprocity-row">
+                <span>Impressions received</span>
+                <strong>{reciprocity.impressions_received.toLocaleString()}</strong>
+              </div>
+              <div className="reciprocity-row">
+                <span>Balance</span>
+                <strong className={reciprocity.balance >= 0 ? 'positive' : 'negative'}>
+                  {reciprocity.balance > 0 ? '+' : ''}{reciprocity.balance}
+                </strong>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard>
+            <h2>Trust Status</h2>
+            <div className="trust-detail">
+              <div className="trust-row">
+                <span>Status</span>
+                <span className={`badge ${trust.status === 'active' ? 'badge-green' : trust.status === 'grace_period' ? 'badge-yellow' : 'badge-red'}`}>
+                  {trust.status}
+                </span>
+              </div>
+              <div className="trust-row">
+                <span>Trust score</span>
+                <strong>{(trust.score * 100).toFixed(0)}%</strong>
+              </div>
+              {trust.last_verified_at && (
+                <div className="trust-row">
+                  <span>Last verified</span>
+                  <span>{new Date(trust.last_verified_at).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </GlassCard>
         </div>
-      </div>
+      </AnimatedSection>
 
       {recent_matches.length > 0 && (
-        <div className="card">
-          <h2>Recent Matches</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Startup</th>
-                <th>Impressions</th>
-                <th>Clicks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent_matches.map((m) => (
-                <tr key={m.startup_id}>
-                  <td><Link to={`/directory/${m.startup_id}`} className="startup-link">{m.name}</Link></td>
-                  <td>{m.impressions}</td>
-                  <td>{m.clicks}</td>
+        <AnimatedSection delay={200}>
+          <GlassCard>
+            <h2>Recent Matches</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Startup</th>
+                  <th>Impressions</th>
+                  <th>Clicks</th>
+                  {recent_matches[0].conversions !== undefined && <th>Conversions</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recent_matches.map((m) => (
+                  <tr key={m.startup_id}>
+                    <td><Link to={`/directory/${m.startup_id}`} className="startup-link">{m.name}</Link></td>
+                    <td>{m.impressions}</td>
+                    <td>{m.clicks}</td>
+                    {m.conversions !== undefined && <td>{m.conversions}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </GlassCard>
+        </AnimatedSection>
       )}
 
       {breakdowns && (
-        <div className="breakdown-grid">
-          {breakdowns.by_device.length > 0 && (
-            <div className="card">
-              <h2>By Device</h2>
-              <table>
-                <thead><tr><th>Device</th><th>Views</th><th>%</th></tr></thead>
-                <tbody>
-                  {breakdowns.by_device.map((d) => (
-                    <tr key={d.device_type}>
-                      <td style={{ textTransform: 'capitalize' }}>{d.device_type}</td>
-                      <td>{d.impressions}</td>
-                      <td>{d.percentage.toFixed(1)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {breakdowns.by_referrer.length > 0 && (
-            <div className="card">
-              <h2>By Referrer</h2>
-              <table>
-                <thead><tr><th>Source</th><th>Views</th></tr></thead>
-                <tbody>
-                  {breakdowns.by_referrer.map((r) => (
-                    <tr key={r.source}>
-                      <td>{r.source}</td>
-                      <td>{r.impressions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {breakdowns.by_country.length > 0 && (
-            <div className="card">
-              <h2>By Country</h2>
-              <table>
-                <thead><tr><th>Country</th><th>Views</th></tr></thead>
-                <tbody>
-                  {breakdowns.by_country.map((c) => (
-                    <tr key={c.country}>
-                      <td>{c.country}</td>
-                      <td>{c.impressions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <AnimatedSection delay={300}>
+          <div className="breakdown-grid">
+            {breakdowns.by_device.length > 0 && (
+              <GlassCard>
+                <h2>By Device</h2>
+                <table>
+                  <thead><tr><th>Device</th><th>Views</th><th>%</th></tr></thead>
+                  <tbody>
+                    {breakdowns.by_device.map((d) => (
+                      <tr key={d.device_type}>
+                        <td style={{ textTransform: 'capitalize' }}>{d.device_type}</td>
+                        <td>{d.impressions}</td>
+                        <td>{d.percentage.toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </GlassCard>
+            )}
+            {breakdowns.by_referrer.length > 0 && (
+              <GlassCard>
+                <h2>By Referrer</h2>
+                <table>
+                  <thead><tr><th>Source</th><th>Views</th></tr></thead>
+                  <tbody>
+                    {breakdowns.by_referrer.map((r) => (
+                      <tr key={r.source}>
+                        <td>{r.source}</td>
+                        <td>{r.impressions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </GlassCard>
+            )}
+            {breakdowns.by_country.length > 0 && (
+              <GlassCard>
+                <h2>By Country</h2>
+                <table>
+                  <thead><tr><th>Country</th><th>Views</th></tr></thead>
+                  <tbody>
+                    {breakdowns.by_country.map((c) => (
+                      <tr key={c.country}>
+                        <td>{c.country}</td>
+                        <td>{c.impressions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </GlassCard>
+            )}
+          </div>
+        </AnimatedSection>
       )}
     </>
   )

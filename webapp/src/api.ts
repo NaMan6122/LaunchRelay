@@ -21,6 +21,9 @@ export interface DirectoryEntry {
   categories: string[]
   logo_url?: string
   joined_at: string
+  trust_score: number
+  verified_traffic: boolean
+  boost_level: number
 }
 
 export interface Pagination {
@@ -43,6 +46,8 @@ export interface StartupProfile {
   logo_url?: string
   joined_at: string
   trust_score: number
+  verified_traffic: boolean
+  boost_level: number
   stats: { impressions_30d: number; clicks_30d: number }
 }
 
@@ -53,6 +58,8 @@ export interface DashboardData {
     clicks_7d: number
     ctr: number
     reciprocity_balance: number
+    conversions_7d?: number
+    conversion_rate?: number
   }
   reciprocity: {
     balance: number
@@ -64,6 +71,7 @@ export interface DashboardData {
     name: string
     impressions: number
     clicks: number
+    conversions?: number
   }[]
   trust: {
     score: number

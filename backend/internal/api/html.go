@@ -2,8 +2,10 @@ package api
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +16,28 @@ import (
 
 //go:embed templates/*.html
 var templateFS embed.FS
+
+//go:embed all:static
+var staticAssets embed.FS
+
+type ViteManifest struct {
+	Files map[string]ViteManifestEntry `json:"src"`
+}
+
+type ViteManifestEntry struct {
+	File     string   `json:"file"`
+	CSS      []string `json:"css,omitempty"`
+	IsEntry  bool     `json:"isEntry,omitempty"`
+}
+
+type ShellData struct {
+	Page       string
+	PageTitle  string
+	PropsJSON  string
+	ScriptTags template.HTML
+	StyleTags  template.HTML
+	StartupID  string
+}
 
 type DashboardPageData struct {
 	StartupName        string
@@ -48,23 +72,28 @@ type DirectoryPageData struct {
 }
 
 type DirectoryEntryData struct {
-	Name       string
-	Slug       string
-	Pitch      string
-	Categories []string
+	Name            string
+	Slug            string
+	Pitch           string
+	Categories      []string
+	TrustScore      float64
+	VerifiedTraffic bool
+	BoostLevel      int
 }
 
 type ProfilePageData struct {
-	Name          string
-	Slug          string
-	Pitch         string
-	URL           string
-	Categories    []string
-	JoinedAt      string
-	TrustScore    float64
-	Impressions30d int
-	Clicks30d     int
-	CTR           float64
+	Name            string
+	Slug            string
+	Pitch           string
+	URL             string
+	Categories      []string
+	JoinedAt        string
+	TrustScore      float64
+	VerifiedTraffic bool
+	Impressions30d  int
+	Clicks30d       int
+	CTR             float64
+	StartupID       string
 }
 
 func (s *Server) loadTemplates() *template.Template {
@@ -77,6 +106,24 @@ func (s *Server) loadTemplates() *template.Template {
 		},
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
+		"trustLabel": func(s float64) string {
+			if s >= 0.8 {
+				return "High Trust"
+			}
+			if s >= 0.5 {
+				return "Trusting"
+			}
+			return "New"
+		},
+		"trustBadgeClass": func(s float64) string {
+			if s >= 0.8 {
+				return "badge-green"
+			}
+			if s >= 0.5 {
+				return "badge-yellow"
+			}
+			return "badge"
+		},
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")
@@ -84,6 +131,64 @@ func (s *Server) loadTemplates() *template.Template {
 		panic(fmt.Sprintf("load templates: %v", err))
 	}
 	return tmpl
+}
+
+func loadManifest() (scriptTags, styleTags string) {
+	data, err := staticAssets.ReadFile(".vite/manifest.json")
+	if err != nil {
+		return "", ""
+	}
+
+	var manifest map[string]ViteManifestEntry
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		log.Printf("failed to parse vite manifest: %v", err)
+		return "", ""
+	}
+
+	for key, entry := range manifest {
+		if entry.IsEntry || strings.HasSuffix(key, ".tsx") || strings.HasSuffix(key, ".ts") {
+			scriptTags += fmt.Sprintf(`<script type="module" src="/static/%s"></script>`, entry.File)
+			for _, css := range entry.CSS {
+				styleTags += fmt.Sprintf(`<link rel="stylesheet" href="/static/%s">`, css)
+			}
+			break
+		}
+	}
+	return scriptTags, styleTags
+}
+
+func (s *Server) handleReactShell(page, startupID string) http.HandlerFunc {
+	tmpl := s.loadTemplates()
+	scriptTags, styleTags := loadManifest()
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		props := map[string]string{}
+		if startupID != "" {
+			props["startup_id"] = startupID
+		}
+		propsJSON, _ := json.Marshal(props)
+
+		title := "LaunchRelay"
+		if page == "dashboard" {
+			title = "Dashboard"
+		} else if page == "login" {
+			title = "Log in"
+		} else if page == "apply" {
+			title = "Apply"
+		}
+
+		data := ShellData{
+			Page:       page,
+			PageTitle:  title,
+			PropsJSON:  string(propsJSON),
+			ScriptTags: template.HTML(scriptTags),
+			StyleTags:  template.HTML(styleTags),
+			StartupID:  startupID,
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		tmpl.ExecuteTemplate(w, "shell.html", data)
+	}
 }
 
 func (s *Server) handleDashboardHTML() http.HandlerFunc {
@@ -218,7 +323,7 @@ func (s *Server) handleDirectoryHTML() http.HandlerFunc {
 		data.TotalPages = totalPages
 
 		// Load entries
-		listQuery := `SELECT s.id, s.slug, s.name, s.one_line_pitch FROM startups s WHERE s.status = 'active'`
+		listQuery := `SELECT s.id, s.slug, s.name, s.one_line_pitch, s.trust_score, s.verified_traffic_tier, s.boost_level FROM startups s WHERE s.status = 'active'`
 		listArgs := []any{}
 		if category != "" {
 			listQuery += ` AND EXISTS (
@@ -227,7 +332,7 @@ func (s *Server) handleDirectoryHTML() http.HandlerFunc {
 				WHERE sc.startup_id = s.id AND c.slug = $1)`
 			listArgs = append(listArgs, category)
 		}
-		listQuery += ` ORDER BY s.created_at DESC LIMIT $2 OFFSET $3`
+		listQuery += ` ORDER BY s.boost_level DESC, s.created_at DESC LIMIT $2 OFFSET $3`
 		listArgs = append(listArgs, limit, (page-1)*limit)
 
 		// Convert to dollar params
@@ -241,7 +346,7 @@ func (s *Server) handleDirectoryHTML() http.HandlerFunc {
 			for rows.Next() {
 				var id string
 				var e DirectoryEntryData
-				rows.Scan(&id, &e.Slug, &e.Name, &e.Pitch)
+				rows.Scan(&id, &e.Slug, &e.Name, &e.Pitch, &e.TrustScore, &e.VerifiedTraffic, &e.BoostLevel)
 				e.Categories, _ = loadCategories(s.db, id)
 				data.Entries = append(data.Entries, e)
 			}
@@ -262,9 +367,9 @@ func (s *Server) handleProfileHTML() http.HandlerFunc {
 
 		var startupID string
 		err := s.db.QueryRow(`
-			SELECT id, slug, name, one_line_pitch, url, trust_score, created_at::text
+			SELECT id, slug, name, one_line_pitch, url, trust_score, verified_traffic_tier, created_at::text
 			FROM startups WHERE slug = $1 AND status = 'active'
-		`, slug).Scan(&startupID, &data.Slug, &data.Name, &data.Pitch, &data.URL, &data.TrustScore, &data.JoinedAt)
+		`, slug).Scan(&startupID, &data.Slug, &data.Name, &data.Pitch, &data.URL, &data.TrustScore, &data.VerifiedTraffic, &data.JoinedAt)
 		if err != nil {
 			http.NotFound(w, r)
 			return

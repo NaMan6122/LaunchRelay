@@ -72,7 +72,8 @@ func ScoreCandidate(candidate, requester Startup, w Weights, ctx MatchContext) f
 		w.Balance*normBalance +
 		w.Trust*candidate.TrustScore -
 		w.Diversity*diversity -
-		w.SizeMismatch*sizeMismatch
+		w.SizeMismatch*sizeMismatch +
+		w.BoostBonus*float64(candidate.BoostLevel)
 }
 
 // ScoredCandidate is a candidate with its computed score

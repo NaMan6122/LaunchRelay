@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { api } from '../api'
+import GlassCard from '../components/GlassCard'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -45,10 +46,10 @@ export default function Login() {
   if (token) {
     return (
       <section className="page-centered">
-        <div className="login-card">
-          <h2>Verifying your link...</h2>
+        <GlassCard>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Verifying your link...</h2>
           {error && <p className="error-message">{error}</p>}
-        </div>
+        </GlassCard>
       </section>
     )
   }
@@ -56,21 +57,21 @@ export default function Login() {
   if (sent) {
     return (
       <section className="page-centered">
-        <div className="login-card">
+        <GlassCard>
           <div className="login-icon">&#x2709;</div>
-          <h2>Check your email</h2>
-          <p>We sent a magic link to <strong>{email}</strong>. Click it to log in.</p>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Check your email</h2>
+          <p style={{ color: 'var(--slate-500)', marginBottom: 20 }}>We sent a magic link to <strong>{email}</strong>. Click it to log in.</p>
           <p className="text-muted">No password needed. The link expires in 15 minutes.</p>
-        </div>
+        </GlassCard>
       </section>
     )
   }
 
   return (
     <section className="page-centered">
-      <div className="login-card">
-        <h2>Log in to LaunchRelay</h2>
-        <p>Enter your email and we&apos;ll send you a magic link.</p>
+      <GlassCard>
+        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Log in to LaunchRelay</h2>
+        <p style={{ color: 'var(--slate-500)', marginBottom: 28 }}>Enter your email and we&apos;ll send you a magic link.</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="email">Email address</label>
@@ -92,7 +93,7 @@ export default function Login() {
         <p className="text-muted login-footer">
           Don&apos;t have an account? <a href="/apply">Apply here</a>
         </p>
-      </div>
+      </GlassCard>
     </section>
   )
 }

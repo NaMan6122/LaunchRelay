@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -68,6 +69,14 @@ func (s *Server) registerRoutes() {
 	// Trust score
 	s.router.Get("/v1/startups/{id}/trust", s.handleTrustScore())
 
+	// Traffic verification
+	s.router.Post("/v1/startups/{id}/verify-traffic", s.handleVerifyTraffic())
+
+	// Webhooks
+	s.router.Post("/v1/startups/{id}/webhooks", s.handleCreateWebhook())
+	s.router.Get("/v1/startups/{id}/webhooks", s.handleListWebhooks())
+	s.router.Delete("/v1/startups/{id}/webhooks/{webhook_id}", s.handleDeleteWebhook())
+
 	// Dashboard API (JSON)
 	s.router.Get("/v1/dashboard/{startup_id}", s.handleDashboard())
 
@@ -78,13 +87,40 @@ func (s *Server) registerRoutes() {
 	// Ledger (admin-triggered monthly computation)
 	s.router.Post("/v1/admin/ledger/compute", s.handleComputeLedger())
 
-	// HTML pages
-	s.router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/directory", http.StatusFound)
+	// Static assets (Vite build output)
+	staticFS, err := fs.Sub(staticAssets, ".")
+	if err == nil {
+		s.router.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	}
+
+	// SDK files
+	sdkFS, err := fs.Sub(staticAssets, "sdk")
+	if err == nil {
+		s.router.Get("/sdk/widget.js", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			http.ServeFileFS(w, r, sdkFS, "widget.js")
+		})
+		s.router.Get("/sdk/pixel.js", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			http.ServeFileFS(w, r, sdkFS, "pixel.js")
+		})
+	}
+
+	// React SPA — serves the unified frontend for all UI routes
+	reactShell := s.handleReactShell("", "")
+	s.router.Get("/", reactShell)
+	s.router.Get("/about", reactShell)
+	s.router.Get("/directory", reactShell)
+	s.router.Get("/directory/{slug}", reactShell)
+	s.router.Get("/login", s.handleReactShell("login", ""))
+	s.router.Get("/apply", s.handleReactShell("apply", ""))
+	s.router.Get("/dashboard/{startup_id}", func(w http.ResponseWriter, r *http.Request) {
+		s.handleReactShell("dashboard", chi.URLParam(r, "startup_id"))(w, r)
 	})
-	s.router.Get("/dashboard/{startup_id}", s.handleDashboardHTML())
-	s.router.Get("/directory/{slug}", s.handleProfileHTML())
-	s.router.Get("/directory", s.handleDirectoryHTML())
+	// Catch-all for client-side routing
+	s.router.Get("/*", reactShell)
 }
 
 func (s *Server) Start() error {

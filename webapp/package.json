@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && VITE_BASE=/static/ vite build && rm -f ../backend/internal/api/static/index.html",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/three": "^0.185.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "react-router-dom": "^6.26.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",
