@@ -12,6 +12,7 @@ import Apply from './pages/Apply'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
 import WidgetSettings from './pages/WidgetSettings'
+import Exclusions from './pages/Exclusions'
 import './styles/app.css'
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/dashboard/:startupId" element={<Dashboard />} />
               <Route path="/dashboard/:startupId/settings" element={<Settings />} />
               <Route path="/dashboard/:startupId/widget" element={<WidgetSettings />} />
+              <Route path="/dashboard/:startupId/exclusions" element={<Exclusions />} />
             </Routes>
           </div>
         </main>

@@ -83,6 +83,7 @@ func (s *Server) registerRoutes() {
 		r.Patch("/v1/startups/{id}", s.requireOwnership(s.handleUpdateStartup()))
 		r.Post("/v1/startups/{id}/exclusions", s.requireOwnership(s.handleCreateExclusion()))
 		r.Get("/v1/startups/{id}/exclusions", s.requireOwnership(s.handleListExclusions()))
+		r.Delete("/v1/startups/{id}/exclusions/{exclusion_id}", s.requireOwnership(s.handleDeleteExclusion()))
 		r.Post("/v1/startups/{id}/verify-traffic", s.requireOwnership(s.handleVerifyTraffic()))
 		r.Post("/v1/startups/{id}/webhooks", s.requireOwnership(s.handleCreateWebhook()))
 		r.Get("/v1/startups/{id}/webhooks", s.requireOwnership(s.handleListWebhooks()))

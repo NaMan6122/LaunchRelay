@@ -164,6 +164,22 @@ export const api = {
       })
     },
   },
+  exclusions: {
+    list(startupId: string) {
+      return request<{ id: string; excluded_startup_id?: string; excluded_category_id?: string }[]>(`/startups/${startupId}/exclusions`)
+    },
+    create(startupId: string, data: { excluded_category_id?: string; excluded_startup_id?: string }) {
+      return request<{ id: string }>(`/startups/${startupId}/exclusions`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    remove(startupId: string, exclusionId: string) {
+      return request<{ deleted: boolean }>(`/startups/${startupId}/exclusions/${exclusionId}`, {
+        method: 'DELETE',
+      })
+    },
+  },
   embeds: {
     list(startupId: string) {
       return request<EmbedInstance[]>(`/startups/${startupId}/embeds`)

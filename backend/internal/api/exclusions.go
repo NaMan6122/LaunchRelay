@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type ExclusionRequest struct {
@@ -78,6 +80,28 @@ func (s *Server) handleListExclusions() func(http.ResponseWriter, *http.Request,
 		}
 
 		writeOK(w, exclusions)
+	}
+}
+
+func (s *Server) handleDeleteExclusion() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
+		exclusionID := chi.URLParam(r, "exclusion_id")
+
+		result, err := s.db.Exec(
+			`DELETE FROM competitor_exclusions WHERE id = $1 AND startup_id = $2`,
+			exclusionID, startupID,
+		)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to delete exclusion")
+			return
+		}
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			writeError(w, http.StatusNotFound, "exclusion not found")
+			return
+		}
+
+		writeOK(w, map[string]bool{"deleted": true})
 	}
 }
 
