@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import Login from './pages/Login'
 import Apply from './pages/Apply'
 import Dashboard from './pages/Dashboard'
+import Settings from './pages/Settings'
 import './styles/app.css'
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/apply" element={<Apply />} />
               <Route path="/dashboard/:startupId" element={<Dashboard />} />
+              <Route path="/dashboard/:startupId/settings" element={<Settings />} />
             </Routes>
           </div>
         </main>

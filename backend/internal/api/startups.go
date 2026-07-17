@@ -34,8 +34,12 @@ type StartupResponse struct {
 	CreatedAt string   `json:"created_at"`
 }
 
-type StartupStatusUpdate struct {
-	Status string `json:"status"`
+type StartupUpdateRequest struct {
+	Name         string   `json:"name,omitempty"`
+	URL          string   `json:"url,omitempty"`
+	OneLinePitch string   `json:"one_line_pitch,omitempty"`
+	Categories   []string `json:"categories,omitempty"`
+	Status       string   `json:"status,omitempty"`
 }
 
 var slugRegex = regexp.MustCompile(`[^a-z0-9-]`)
@@ -147,32 +151,88 @@ func (s *Server) handleCreateStartup() http.HandlerFunc {
 
 func (s *Server) handleUpdateStartup() func(http.ResponseWriter, *http.Request, string) {
 	return func(w http.ResponseWriter, r *http.Request, id string) {
-		var req StartupStatusUpdate
+		var req StartupUpdateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
-		validStatuses := map[string]bool{
-			"pending": true, "active": true, "paused": true, "delisted": true, "rejected": true,
-		}
-		if !validStatuses[req.Status] {
-			writeError(w, http.StatusBadRequest, "invalid status: must be one of pending, active, paused, delisted, rejected")
-			return
+		hasChanges := false
+
+		// Validate and build update query
+		if req.Status != "" {
+			validStatuses := map[string]bool{
+				"pending": true, "active": true, "paused": true, "delisted": true, "rejected": true,
+			}
+			if !validStatuses[req.Status] {
+				writeError(w, http.StatusBadRequest, "invalid status: must be one of pending, active, paused, delisted, rejected")
+				return
+			}
+			s.db.Exec(`UPDATE startups SET status = $1, updated_at = NOW() WHERE id = $2`, req.Status, id)
+			hasChanges = true
 		}
 
-		result, err := s.db.Exec(
-			`UPDATE startups SET status = $1, updated_at = NOW() WHERE id = $2`,
-			req.Status, id,
-		)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to update startup")
-			return
+		if req.Name != "" {
+			if len(req.Name) > 255 {
+				writeError(w, http.StatusBadRequest, "name must be 255 characters or fewer")
+				return
+			}
+			slug := toSlug(req.Name)
+			// Handle slug collision by appending random suffix
+			result, err := s.db.Exec(
+				`UPDATE startups SET name = $1, slug = $2, updated_at = NOW() WHERE id = $3`,
+				req.Name, slug, id,
+			)
+			if err != nil && strings.Contains(err.Error(), "unique") {
+				suffix := make([]byte, 3)
+				rand.Read(suffix)
+				slug = fmt.Sprintf("%s-%s", slug, hex.EncodeToString(suffix))
+				_, err = s.db.Exec(
+					`UPDATE startups SET name = $1, slug = $2, updated_at = NOW() WHERE id = $3`,
+					req.Name, slug, id,
+				)
+			}
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to update name")
+				return
+			}
+			_ = result
+			hasChanges = true
 		}
 
-		rows, _ := result.RowsAffected()
-		if rows == 0 {
-			writeError(w, http.StatusNotFound, "startup not found")
+		if req.URL != "" {
+			if !validURL(req.URL) {
+				writeError(w, http.StatusBadRequest, "invalid URL: must be a valid http or https URL")
+				return
+			}
+			s.db.Exec(`UPDATE startups SET url = $1, updated_at = NOW() WHERE id = $2`, req.URL, id)
+			hasChanges = true
+		}
+
+		if req.OneLinePitch != "" {
+			if len(req.OneLinePitch) > 280 {
+				writeError(w, http.StatusBadRequest, "one_line_pitch must be 280 characters or fewer")
+				return
+			}
+			s.db.Exec(`UPDATE startups SET one_line_pitch = $1, updated_at = NOW() WHERE id = $2`, req.OneLinePitch, id)
+			hasChanges = true
+		}
+
+		if req.Categories != nil {
+			s.db.Exec(`DELETE FROM startup_categories WHERE startup_id = $1`, id)
+			for _, catName := range req.Categories {
+				var catID string
+				err := s.db.QueryRow(`SELECT id FROM categories WHERE name = $1`, catName).Scan(&catID)
+				if err != nil {
+					continue
+				}
+				s.db.Exec(`INSERT INTO startup_categories (startup_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, id, catID)
+			}
+			hasChanges = true
+		}
+
+		if !hasChanges {
+			writeError(w, http.StatusBadRequest, "no fields to update")
 			return
 		}
 

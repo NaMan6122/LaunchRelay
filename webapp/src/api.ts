@@ -139,6 +139,18 @@ export const api = {
     get(id: string) {
       return request<StartupResponse>(`/startups/${id}`)
     },
+    update(id: string, data: {
+      name?: string
+      url?: string
+      one_line_pitch?: string
+      categories?: string[]
+      status?: string
+    }) {
+      return request<{ status: string }>(`/startups/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
   },
   dashboard: {
     get(startupId: string) {
