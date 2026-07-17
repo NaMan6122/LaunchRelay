@@ -137,6 +137,7 @@ export default function Dashboard() {
         <AnimatedSection delay={200}>
           <GlassCard>
             <h2>Recent Matches</h2>
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -157,6 +158,7 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </GlassCard>
         </AnimatedSection>
       )}
@@ -167,6 +169,7 @@ export default function Dashboard() {
             {breakdowns.by_device.length > 0 && (
               <GlassCard>
                 <h2>By Device</h2>
+                <div className="table-wrap">
                 <table>
                   <thead><tr><th>Device</th><th>Views</th><th>%</th></tr></thead>
                   <tbody>
@@ -179,11 +182,13 @@ export default function Dashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </GlassCard>
             )}
             {breakdowns.by_referrer.length > 0 && (
               <GlassCard>
                 <h2>By Referrer</h2>
+                <div className="table-wrap">
                 <table>
                   <thead><tr><th>Source</th><th>Views</th></tr></thead>
                   <tbody>
@@ -195,11 +200,13 @@ export default function Dashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </GlassCard>
             )}
             {breakdowns.by_country.length > 0 && (
               <GlassCard>
                 <h2>By Country</h2>
+                <div className="table-wrap">
                 <table>
                   <thead><tr><th>Country</th><th>Views</th></tr></thead>
                   <tbody>
@@ -211,6 +218,7 @@ export default function Dashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </GlassCard>
             )}
           </div>
