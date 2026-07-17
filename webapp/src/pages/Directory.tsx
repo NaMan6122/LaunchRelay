@@ -23,21 +23,31 @@ export default function Directory() {
   const [total, setTotal] = useState(0)
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const page = Number(searchParams.get('page')) || 1
   const category = searchParams.get('category') || ''
   const limit = 12
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
+    setError('')
     Promise.all([
       api.directory.list({ page, limit, category: category || undefined }),
       api.categories.list(),
     ]).then(([dir, cats]) => {
+      if (cancelled) return
       setEntries(dir.data)
       setTotal(dir.pagination.total)
       setCategories(cats.map((c) => c.slug))
-    }).finally(() => setLoading(false))
+    }).catch((err) => {
+      if (cancelled) return
+      setError(err instanceof Error ? err.message : 'Failed to load directory')
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
   }, [page, category])
 
   function setCategory(cat: string) {
@@ -78,6 +88,12 @@ export default function Directory() {
 
       {loading ? (
         <SkeletonGrid count={6} />
+      ) : error ? (
+        <div className="empty">
+          <h3>Something went wrong</h3>
+          <p>{error}</p>
+          <button className="btn btn-outline" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>Try Again</button>
+        </div>
       ) : entries.length === 0 ? (
         <div className="empty">
           <h3>No startups found</h3>
@@ -94,7 +110,7 @@ export default function Directory() {
                     <h3>{e.name}</h3>
                     <p>{e.one_line_pitch}</p>
                     <div className="dir-card-tags">
-                      {e.categories.map((c) => (
+                      {(e.categories || []).map((c) => (
                         <span key={c} className="badge badge-blue">{c}</span>
                       ))}
                       <Badge variant={trustVariant(e.trust_score)}>{trustLabel(e.trust_score)}</Badge>

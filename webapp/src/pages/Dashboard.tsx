@@ -133,7 +133,7 @@ export default function Dashboard() {
         </div>
       </AnimatedSection>
 
-      {recent_matches.length > 0 && (
+      {recent_matches && recent_matches.length > 0 && (
         <AnimatedSection delay={200}>
           <GlassCard>
             <h2>Recent Matches</h2>
