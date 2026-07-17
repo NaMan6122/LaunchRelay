@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev:sdk & vite",
+    "dev:sdk": "cd ../sdk && npm run dev",
     "build": "tsc -b && VITE_BASE=/static/ vite build && rm -f ../backend/internal/api/static/index.html",
     "preview": "vite preview"
   },
