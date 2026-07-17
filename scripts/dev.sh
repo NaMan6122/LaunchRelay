@@ -19,6 +19,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+kill_existing() {
+  local pid
+  pid=$(lsof -ti :8080 2>/dev/null)
+  if [ -n "$pid" ]; then
+    warn "Port 8080 in use by PID $pid — killing..."
+    kill "$pid" 2>/dev/null && sleep 1
+  fi
+}
+
 info "DEV" "Starting LaunchRelay dev environment"
 
 # ── Check prerequisites ──────────────────────────────────────────
@@ -56,14 +65,18 @@ else
   info "2/4" "Skipping migrations (migrate CLI not found)"
 fi
 
-# ── 3. Print useful info ─────────────────────────────────────────
+# ── 3. Kill stale backend ────────────────────────────────────────
+kill_existing
+
+# ── 4. Print useful info ─────────────────────────────────────────
 info "3/4" "Starting API server"
 echo ""
 printf "  ${GREEN}API:${NC}      http://localhost:8080\n"
 printf "  ${GREEN}Health:${NC}   http://localhost:8080/v1/health\n"
+printf "  ${GREEN}Frontend:${NC} http://localhost:5173 (run 'cd webapp && npx vite' separately)\n"
 printf "  ${GREEN}DB:${NC}       postgres://launchrelay:launchrelay_dev@localhost:5432/launchrelay\n"
 echo ""
 
-# ── 4. Start API server ──────────────────────────────────────────
+# ── 5. Start API server ──────────────────────────────────────────
 info "4/4" "Running go run ./cmd/api/ ..."
 cd "$ROOT/backend" && go run ./cmd/api/
