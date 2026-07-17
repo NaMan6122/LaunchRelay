@@ -26,8 +26,8 @@ export default function Exclusions() {
       api.exclusions.list(id),
       api.categories.list(),
     ]).then(([ex, cats]) => {
-      setExclusions(ex)
-      setCategories(cats)
+      setExclusions(ex || [])
+      setCategories(cats || [])
     }).catch(() => toast('Failed to load', 'error'))
       .finally(() => setLoading(false))
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps

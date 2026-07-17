@@ -24,7 +24,7 @@ export default function Settings() {
     ]).then(([s, cats]) => {
       setStartup(s)
       setForm({ name: s.name, url: s.url, one_line_pitch: s.one_line_pitch, categories: s.categories || [] })
-      setCategories(cats)
+      setCategories(cats || [])
     }).catch(() => {
       toast('Failed to load startup', 'error')
     }).finally(() => setLoading(false))

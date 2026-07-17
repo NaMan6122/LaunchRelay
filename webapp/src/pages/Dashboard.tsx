@@ -144,7 +144,7 @@ export default function Dashboard() {
         </div>
       </AnimatedSection>
 
-      {embeds.length > 0 && (
+      {embeds && embeds.length > 0 && (
         <AnimatedSection delay={150}>
           <GlassCard>
             <h2>Embedded Domains</h2>

@@ -28,7 +28,7 @@ export default function WidgetSettings() {
 
   function loadEmbeds() {
     if (!id) return
-    api.embeds.list(id).then(setEmbeds).catch(() => {
+    api.embeds.list(id).then((data) => setEmbeds(data || [])).catch(() => {
       toast('Failed to load embeds', 'error')
     }).finally(() => setLoading(false))
   }
