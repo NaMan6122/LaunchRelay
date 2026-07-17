@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 
@@ -7,6 +7,8 @@ export default function Nav() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function onScroll() { setScrolled(window.scrollY > 20) }
@@ -14,12 +16,22 @@ export default function Nav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleLogout = useCallback(async () => {
     await logout()
     navigate('/')
   }, [logout, navigate])
 
-  function closeMenu() { setMenuOpen(false) }
+  function closeMenu() { setMenuOpen(false); setUserMenuOpen(false) }
 
   return (
     <nav className={`nav ${scrolled ? 'nav-scrolled' : ''}`}>
@@ -36,10 +48,27 @@ export default function Nav() {
             <Link to={`/dashboard/${user.startupId}`} onClick={closeMenu}>Dashboard</Link>
           ) : null}
           {user ? (
-            <>
-              <span className="nav-user">{user.email}</span>
-              <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: 13 }} onClick={handleLogout}>Log out</button>
-            </>
+            <div className="nav-user-menu" ref={userMenuRef}>
+              <button className="nav-user-trigger" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <span className="nav-user-avatar">{user.email.charAt(0).toUpperCase()}</span>
+                <span className="nav-user-email">{user.email}</span>
+                <span className="nav-user-arrow">{userMenuOpen ? '▲' : '▼'}</span>
+              </button>
+              {userMenuOpen && (
+                <div className="nav-user-dropdown">
+                  {user.startupId && (
+                    <>
+                      <Link to={`/dashboard/${user.startupId}`} className="nav-dropdown-item" onClick={closeMenu}>Dashboard</Link>
+                      <Link to={`/dashboard/${user.startupId}/settings`} className="nav-dropdown-item" onClick={closeMenu}>Settings</Link>
+                      <Link to={`/dashboard/${user.startupId}/widget`} className="nav-dropdown-item" onClick={closeMenu}>Widget</Link>
+                      <Link to={`/dashboard/${user.startupId}/exclusions`} className="nav-dropdown-item" onClick={closeMenu}>Exclusions</Link>
+                      <div className="nav-dropdown-divider" />
+                    </>
+                  )}
+                  <button className="nav-dropdown-item nav-dropdown-danger" onClick={() => { closeMenu(); handleLogout() }}>Log out</button>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <Link to="/login" className="nav-link-secondary" onClick={closeMenu}>Log in</Link>

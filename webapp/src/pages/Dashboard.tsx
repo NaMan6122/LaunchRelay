@@ -65,6 +65,12 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="dashboard-nav" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+        <Link to={`/dashboard/${startupId}/settings`} className="btn btn-outline" style={{ fontSize: 13, padding: '8px 16px' }}>Settings</Link>
+        <Link to={`/dashboard/${startupId}/widget`} className="btn btn-outline" style={{ fontSize: 13, padding: '8px 16px' }}>Widget</Link>
+        <Link to={`/dashboard/${startupId}/exclusions`} className="btn btn-outline" style={{ fontSize: 13, padding: '8px 16px' }}>Exclusions</Link>
+      </div>
+
       <AnimatedSection>
         <div className="kpi-grid">
           <KpiCard

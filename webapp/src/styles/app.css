@@ -159,6 +159,40 @@ a:hover { color: var(--blue-400); }
 .nav-link-secondary { color: var(--text-tertiary) !important; }
 .nav-user { color: var(--text-muted); font-size: 13px; margin-left: 4px; padding: 8px 14px; }
 
+.nav-user-menu { position: relative; }
+.nav-user-trigger {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); padding: 6px 12px;
+  cursor: pointer; color: var(--text-primary);
+  font-size: 13px; transition: all var(--transition);
+}
+.nav-user-trigger:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+.nav-user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue-600), var(--indigo-500));
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.nav-user-email { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.nav-user-arrow { font-size: 8px; color: var(--text-muted); }
+.nav-user-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+  min-width: 180px; z-index: 200; overflow: hidden;
+}
+.nav-dropdown-item {
+  display: block; width: 100%; text-align: left;
+  padding: 10px 16px; font-size: 13px; color: var(--text-secondary);
+  background: none; border: none; cursor: pointer;
+  transition: all var(--transition); text-decoration: none;
+}
+.nav-dropdown-item:hover { background: var(--surface); color: var(--text-primary); text-decoration: none; }
+.nav-dropdown-danger { color: var(--rose-500); }
+.nav-dropdown-danger:hover { background: rgba(244,63,94,0.1); color: var(--rose-500); }
+.nav-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
 .nav-mobile-toggle { display: none; background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; padding: 4px; }
 
 /* ── Footer ── */
