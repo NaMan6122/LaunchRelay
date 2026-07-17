@@ -14,9 +14,10 @@ import (
 )
 
 type Server struct {
-	db     *sqlx.DB
-	router *chi.Mux
-	addr   string
+	db      *sqlx.DB
+	router  *chi.Mux
+	addr    string
+	mailer  EmailSender
 }
 
 func New(db *sqlx.DB) *Server {
@@ -32,6 +33,7 @@ func New(db *sqlx.DB) *Server {
 		db:     db,
 		router: r,
 		addr:   getAddr(),
+		mailer: NewEmailSender(),
 	}
 
 	s.registerRoutes()

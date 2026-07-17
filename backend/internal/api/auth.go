@@ -72,14 +72,24 @@ func (s *Server) handleSendMagicLink() http.HandlerFunc {
 			return
 		}
 
-		// In dev, return the magic link URL directly
-		// In production, you'd send an email here
 		devMode := os.Getenv("DEV_MODE") != "false"
 		resp := MagicLinkResponse{Sent: true}
+
 		if devMode {
 			debugPath := "/login?token=" + token
 			resp.Debug = debugPath
 			log.Printf("[dev] magic link for %s: %s", req.Email, debugPath)
+		} else {
+			appURL := os.Getenv("APP_URL")
+			if appURL == "" {
+				appURL = "https://launchrelay.com"
+			}
+			link := appURL + "/login?token=" + token
+			if err := s.mailer.SendMagicLink(req.Email, link); err != nil {
+				log.Printf("failed to send email to %s: %v", req.Email, err)
+				writeError(w, http.StatusInternalServerError, "failed to send email")
+				return
+			}
 		}
 
 		writeOK(w, resp)
