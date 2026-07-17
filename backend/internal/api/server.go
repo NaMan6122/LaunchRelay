@@ -87,6 +87,10 @@ func (s *Server) registerRoutes() {
 	// Ledger (admin-triggered monthly computation)
 	s.router.Post("/v1/admin/ledger/compute", s.handleComputeLedger())
 
+	// SEO
+	s.router.Get("/robots.txt", s.handleRobotsTxt())
+	s.router.Get("/sitemap.xml", s.handleSitemapXML())
+
 	// Static assets (Vite build output)
 	staticFS, err := fs.Sub(staticAssets, ".")
 	if err == nil {
