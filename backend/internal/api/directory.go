@@ -9,6 +9,7 @@ import (
 )
 
 type DirectoryEntry struct {
+	id              string   `db:"-" json:"-"`
 	Slug            string   `json:"slug"`
 	Name            string   `json:"name"`
 	Pitch           string   `json:"one_line_pitch"`
@@ -61,21 +62,21 @@ func (s *Server) handleListDirectory() http.HandlerFunc {
 		category := r.URL.Query().Get("category")
 
 		var total int
-		countQuery := `SELECT COUNT(*) FROM startups WHERE status = 'active'`
+		countQuery := `SELECT COUNT(*) FROM startups WHERE status IN ('active', 'pending')`
 		countArgs := []any{}
 		if category != "" {
 			countQuery = `
 				SELECT COUNT(*) FROM startups s
 				JOIN startup_categories sc ON sc.startup_id = s.id
 				JOIN categories c ON c.id = sc.category_id
-				WHERE s.status = 'active' AND c.slug = $1`
+				WHERE s.status IN ('active', 'pending') AND c.slug = $1`
 			countArgs = append(countArgs, category)
 		}
 		s.db.Get(&total, countQuery, countArgs...)
 
 		offset := (page - 1) * limit
-		listQuery := `SELECT s.slug, s.name, s.one_line_pitch, COALESCE(s.logo_url, ''), s.created_at, s.trust_score, s.verified_traffic_tier, s.boost_level
-			FROM startups s WHERE s.status = 'active'`
+		listQuery := `SELECT s.id, s.slug, s.name, s.one_line_pitch, COALESCE(s.logo_url, ''), s.created_at, s.trust_score, s.verified_traffic_tier, s.boost_level
+			FROM startups s WHERE s.status IN ('active', 'pending')`
 		listArgs := []any{}
 
 		if category != "" {
@@ -100,14 +101,19 @@ func (s *Server) handleListDirectory() http.HandlerFunc {
 			defer rows.Close()
 			for rows.Next() {
 				var e DirectoryEntry
-				rows.Scan(&e.Slug, &e.Name, &e.Pitch, &e.LogoURL, &e.JoinedAt, &e.TrustScore, &e.VerifiedTraffic, &e.BoostLevel)
+				rows.Scan(&e.id, &e.Slug, &e.Name, &e.Pitch, &e.LogoURL, &e.JoinedAt, &e.TrustScore, &e.VerifiedTraffic, &e.BoostLevel)
 				entries = append(entries, e)
 			}
 		}
 
 		// Load categories for each entry
 		for i := range entries {
-			entries[i].Categories, _ = loadCategories(s.db, entries[i].Slug)
+			cats, err := loadCategories(s.db, entries[i].id)
+			if err == nil && cats != nil {
+				entries[i].Categories = cats
+			} else {
+				entries[i].Categories = []string{}
+			}
 		}
 
 		writeOK(w, DirectoryResponse{
@@ -126,12 +132,11 @@ func (s *Server) handleDirectoryEntry() http.HandlerFunc {
 		slug := chi.URLParam(r, "slug")
 
 		var resp StartupProfileResponse
-		var logoURL string
-		var createdAt string
+		var startupID, logoURL, createdAt string
 		err := s.db.QueryRow(`
-			SELECT slug, name, one_line_pitch, url, COALESCE(logo_url, ''), trust_score, created_at::text
+			SELECT id, slug, name, one_line_pitch, url, COALESCE(logo_url, ''), trust_score, created_at::text
 			FROM startups WHERE slug = $1 AND status = 'active'
-		`, slug).Scan(&resp.Slug, &resp.Name, &resp.Pitch, &resp.URL, &logoURL, &resp.TrustScore, &createdAt)
+		`, slug).Scan(&startupID, &resp.Slug, &resp.Name, &resp.Pitch, &resp.URL, &logoURL, &resp.TrustScore, &createdAt)
 		if err != nil {
 			writeError(w, http.StatusNotFound, "startup not found")
 			return
@@ -139,7 +144,9 @@ func (s *Server) handleDirectoryEntry() http.HandlerFunc {
 
 		resp.LogoURL = logoURL
 		resp.JoinedAt = createdAt
-		resp.Categories, _ = loadCategories(s.db, resp.Slug)
+		if cats, err := loadCategories(s.db, startupID); err == nil && cats != nil {
+			resp.Categories = cats
+		}
 
 		s.db.Get(&resp.Stats.Impressions30d, `
 			SELECT COUNT(*) FROM impressions
