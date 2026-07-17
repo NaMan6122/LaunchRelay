@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth'
 
-interface NavProps {
-  user: { email: string; startupId?: string } | null
-}
-
-export default function Nav({ user }: NavProps) {
+export default function Nav() {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -14,6 +13,11 @@ export default function Nav({ user }: NavProps) {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  const handleLogout = useCallback(async () => {
+    await logout()
+    navigate('/')
+  }, [logout, navigate])
 
   function closeMenu() { setMenuOpen(false) }
 
@@ -32,7 +36,10 @@ export default function Nav({ user }: NavProps) {
             <Link to={`/dashboard/${user.startupId}`} onClick={closeMenu}>Dashboard</Link>
           ) : null}
           {user ? (
-            <span className="nav-user">{user.email}</span>
+            <>
+              <span className="nav-user">{user.email}</span>
+              <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: 13 }} onClick={handleLogout}>Log out</button>
+            </>
           ) : (
             <>
               <Link to="/login" className="nav-link-secondary" onClick={closeMenu}>Log in</Link>

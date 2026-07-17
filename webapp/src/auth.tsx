@@ -10,7 +10,7 @@ interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   login: (token: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -37,7 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u)
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const token = sessionStorage.getItem('lr_token')
+    if (token) {
+      try {
+        await api.auth.logout()
+      } catch { /* token may already be invalid — clear locally anyway */ }
+    }
     sessionStorage.removeItem('lr_token')
     sessionStorage.removeItem('lr_user')
     setUser(null)

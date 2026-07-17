@@ -162,5 +162,10 @@ export const api = {
         body: JSON.stringify({ token }),
       })
     },
+    logout() {
+      return request<{ logged_out: boolean }>('/auth/logout', {
+        method: 'POST',
+      })
+    },
   },
 }

@@ -15,20 +15,27 @@ export default function Login() {
   const { user, login } = useAuth()
 
   const token = searchParams.get('token')
+  const redirectTo = searchParams.get('redirect') || '/'
+
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     if (user) {
-      navigate(user.startupId ? `/dashboard/${user.startupId}` : '/', { replace: true })
+      navigate(user.startupId ? `/dashboard/${user.startupId}` : redirectTo, { replace: true })
     }
-  }, [user, navigate])
+  }, [user, navigate, redirectTo])
 
   useEffect(() => {
     if (token) {
+      setVerifying(true)
       login(token)
-        .then(() => navigate('/', { replace: true }))
-        .catch(() => setError('Invalid or expired link. Please request a new one.'))
+        .then(() => navigate(redirectTo, { replace: true }))
+        .catch(() => {
+          setError('Invalid or expired link. Please request a new one.')
+          setVerifying(false)
+        })
     }
-  }, [token, login, navigate])
+  }, [token, login, navigate, redirectTo])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,7 +56,12 @@ export default function Login() {
     return (
       <section className="page-centered">
         <GlassCard>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Verifying your link...</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div className="spinner" />
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--navy)' }}>
+              {verifying ? 'Verifying your link...' : ''}
+            </h2>
+          </div>
           {error && <p className="error-message">{error}</p>}
         </GlassCard>
       </section>

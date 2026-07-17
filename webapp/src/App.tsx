@@ -13,7 +13,7 @@ import Dashboard from './pages/Dashboard'
 import './styles/app.css'
 
 export default function App() {
-  const { user, loading } = useAuth()
+  const { loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -23,7 +23,7 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="app">
-        <Nav user={user} />
+        <Nav />
         <main className="main">
           <div className="page-transition" key={location.pathname}>
             <Routes location={location}>
