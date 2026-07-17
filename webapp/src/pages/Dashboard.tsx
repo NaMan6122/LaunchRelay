@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, type DashboardData } from '../api'
+import { api, type DashboardData, type EmbedInstance } from '../api'
 import KpiCard from '../components/KpiCard'
 import GlassCard from '../components/GlassCard'
 import TrustBadge from '../components/TrustBadge'
@@ -10,15 +10,20 @@ import { SkeletonKpi } from '../components/Skeleton'
 export default function Dashboard() {
   const { startupId } = useParams<{ startupId: string }>()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [embeds, setEmbeds] = useState<EmbedInstance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!startupId) return
     setLoading(true)
-    api.dashboard.get(startupId)
-      .then(setData)
-      .catch(() => setError('Dashboard not found'))
+    Promise.all([
+      api.dashboard.get(startupId),
+      api.embeds.list(startupId).catch(() => [] as EmbedInstance[]),
+    ]).then(([d, e]) => {
+      setData(d)
+      setEmbeds(e)
+    }).catch(() => setError('Dashboard not found'))
       .finally(() => setLoading(false))
   }, [startupId])
 
@@ -132,6 +137,47 @@ export default function Dashboard() {
           </GlassCard>
         </div>
       </AnimatedSection>
+
+      {embeds.length > 0 && (
+        <AnimatedSection delay={150}>
+          <GlassCard>
+            <h2>Embedded Domains</h2>
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Domain</th>
+                    <th>Format</th>
+                    <th>Theme</th>
+                    <th>Status</th>
+                    <th>Last Verified</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {embeds.map((e) => (
+                    <tr key={e.id}>
+                      <td style={{ fontWeight: 600 }}>{e.host_domain}</td>
+                      <td>{e.widget_format}</td>
+                      <td>{e.widget_theme}</td>
+                      <td>
+                        <span className={`badge ${e.status === 'active' ? 'badge-green' : e.status === 'grace_period' ? 'badge-yellow' : 'badge-red'}`}>
+                          {e.status === 'grace_period' ? 'Grace Period' : e.status}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                        {e.last_verified_at ? new Date(e.last_verified_at).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Link to={`/dashboard/${startupId}/widget`} className="btn btn-outline" style={{ marginTop: 16, display: 'inline-flex' }}>
+              Widget Settings
+            </Link>
+          </GlassCard>
+        </AnimatedSection>
+      )}
 
       {recent_matches && recent_matches.length > 0 && (
         <AnimatedSection delay={200}>
