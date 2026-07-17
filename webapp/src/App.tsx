@@ -1,5 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { useAuth } from './auth'
+import { ToastProvider } from './components/ToastContext'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -13,26 +14,31 @@ import './styles/app.css'
 
 export default function App() {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return <div className="app-loading"><div className="spinner" /></div>
   }
 
   return (
-    <div className="app">
-      <Nav user={user} />
-      <main className="main">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/directory" element={<Directory />} />
-          <Route path="/directory/:slug" element={<Profile />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/apply" element={<Apply />} />
-          <Route path="/dashboard/:startupId" element={<Dashboard />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+    <ToastProvider>
+      <div className="app">
+        <Nav user={user} />
+        <main className="main">
+          <div className="page-transition" key={location.pathname}>
+            <Routes location={location}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/directory" element={<Directory />} />
+              <Route path="/directory/:slug" element={<Profile />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/apply" element={<Apply />} />
+              <Route path="/dashboard/:startupId" element={<Dashboard />} />
+            </Routes>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    </ToastProvider>
   )
 }

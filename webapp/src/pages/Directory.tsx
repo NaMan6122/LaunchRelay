@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api, type DirectoryEntry } from '../api'
 import Badge from '../components/Badge'
 import AnimatedSection from '../components/AnimatedSection'
+import { SkeletonGrid } from '../components/Skeleton'
 
 function trustLabel(score: number): string {
   if (score >= 0.8) return 'High Trust'
@@ -76,7 +77,7 @@ export default function Directory() {
       </div>
 
       {loading ? (
-        <div className="loading-state"><div className="spinner" /></div>
+        <SkeletonGrid count={6} />
       ) : entries.length === 0 ? (
         <div className="empty">
           <h3>No startups found</h3>

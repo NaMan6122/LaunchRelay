@@ -60,6 +60,8 @@ export interface DashboardData {
     reciprocity_balance: number
     conversions_7d?: number
     conversion_rate?: number
+    impressions_by_day?: { date: string; count: number }[]
+    clicks_by_day?: { date: string; count: number }[]
   }
   reciprocity: {
     balance: number

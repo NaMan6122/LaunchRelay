@@ -4,6 +4,7 @@ import { api, type StartupProfile } from '../api'
 import GlassCard from '../components/GlassCard'
 import TrustBadge from '../components/TrustBadge'
 import AnimatedSection from '../components/AnimatedSection'
+import { SkeletonCard, SkeletonKpi } from '../components/Skeleton'
 
 export default function Profile() {
   const { slug } = useParams<{ slug: string }>()
@@ -20,7 +21,16 @@ export default function Profile() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  if (loading) return <div className="loading-state"><div className="spinner" /></div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '32px 0' }}>
+      <div className="skeleton skeleton-line skeleton-line-lg" style={{ height: 32, width: '40%' }} />
+      <div className="skeleton skeleton-line skeleton-line-md" style={{ height: 16, width: '60%' }} />
+      <div className="profile-stats-grid">
+        <SkeletonKpi /><SkeletonKpi /><SkeletonKpi /><SkeletonKpi />
+      </div>
+      <SkeletonCard lines={4} />
+    </div>
+  )
   if (error) return <div className="empty"><h3>{error}</h3><Link to="/directory" className="btn btn-outline">Back to Directory</Link></div>
   if (!profile) return null
 

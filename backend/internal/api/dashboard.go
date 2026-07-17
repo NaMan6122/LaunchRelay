@@ -38,11 +38,18 @@ type CountryBreakdown struct {
 	Impressions int    `json:"impressions"`
 }
 
+type DayBucket struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
 type DashboardOverview struct {
-	Impressions7d    int     `json:"impressions_7d"`
-	Clicks7d         int     `json:"clicks_7d"`
-	CTR              float64 `json:"ctr"`
-	ReciprocityBalance int   `json:"reciprocity_balance"`
+	Impressions7d      int        `json:"impressions_7d"`
+	Clicks7d           int        `json:"clicks_7d"`
+	CTR                float64    `json:"ctr"`
+	ReciprocityBalance int        `json:"reciprocity_balance"`
+	ImpressionsByDay   []DayBucket `json:"impressions_by_day,omitempty"`
+	ClicksByDay        []DayBucket `json:"clicks_by_day,omitempty"`
 }
 
 type ReciprocityInfo struct {
@@ -94,6 +101,43 @@ func (s *Server) handleDashboard() http.HandlerFunc {
 		if resp.Overview.Impressions7d > 0 {
 			resp.Overview.CTR = float64(resp.Overview.Clicks7d) / float64(resp.Overview.Impressions7d)
 		}
+
+		// Daily bucketed impressions (for sparklines)
+		func() {
+			dRows, err := s.db.Query(`
+				SELECT TO_CHAR(timestamp, 'YYYY-MM-DD') as day, COUNT(*) as cnt
+				FROM impressions
+				WHERE viewer_startup_id = $1 AND timestamp >= $2
+				GROUP BY day ORDER BY day
+			`, startupID, sevenDaysAgo)
+			if err != nil {
+				return
+			}
+			defer dRows.Close()
+			for dRows.Next() {
+				var b DayBucket
+				dRows.Scan(&b.Date, &b.Count)
+				resp.Overview.ImpressionsByDay = append(resp.Overview.ImpressionsByDay, b)
+			}
+		}()
+		func() {
+			dRows, err := s.db.Query(`
+				SELECT TO_CHAR(c.timestamp, 'YYYY-MM-DD') as day, COUNT(*) as cnt
+				FROM clicks c
+				JOIN impressions i ON i.id = c.impression_id
+				WHERE i.viewer_startup_id = $1 AND c.timestamp >= $2
+				GROUP BY day ORDER BY day
+			`, startupID, sevenDaysAgo)
+			if err != nil {
+				return
+			}
+			defer dRows.Close()
+			for dRows.Next() {
+				var b DayBucket
+				dRows.Scan(&b.Date, &b.Count)
+				resp.Overview.ClicksByDay = append(resp.Overview.ClicksByDay, b)
+			}
+		}()
 
 		// Reciprocity balance
 		s.db.Get(&resp.Reciprocity, `

@@ -1,3 +1,4 @@
 .anvaya/
 node_modules/
 sdk/test-results/
+backend/bin/

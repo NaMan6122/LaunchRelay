@@ -5,6 +5,7 @@ import KpiCard from '../components/KpiCard'
 import GlassCard from '../components/GlassCard'
 import TrustBadge from '../components/TrustBadge'
 import AnimatedSection from '../components/AnimatedSection'
+import { SkeletonKpi } from '../components/Skeleton'
 
 export default function Dashboard() {
   const { startupId } = useParams<{ startupId: string }>()
@@ -21,11 +22,34 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [startupId])
 
-  if (loading) return <div className="loading-state"><div className="spinner" /></div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
+      <div className="skeleton skeleton-line skeleton-line-lg" style={{ height: 28, width: '30%' }} />
+      <div className="kpi-grid">
+        <SkeletonKpi /><SkeletonKpi /><SkeletonKpi /><SkeletonKpi />
+      </div>
+      <div className="grid-2">
+        <div className="skeleton-card" style={{ height: 180 }} />
+        <div className="skeleton-card" style={{ height: 180 }} />
+      </div>
+    </div>
+  )
   if (error) return <div className="empty"><h3>{error}</h3><Link to="/" className="btn btn-outline">Go Home</Link></div>
   if (!data) return null
 
   const { overview, reciprocity, recent_matches, trust, breakdowns } = data
+
+  function computeTrend(byDay?: { date: string; count: number }[]): { direction: 'up' | 'down'; change: string } | undefined {
+    if (!byDay || byDay.length < 4) return undefined
+    const n = byDay.length
+    const firstHalf = byDay.slice(0, Math.floor(n / 2)).reduce((s, d) => s + d.count, 0)
+    const secondHalf = byDay.slice(Math.floor(n / 2)).reduce((s, d) => s + d.count, 0)
+    if (firstHalf === 0) return undefined
+    const pct = ((secondHalf - firstHalf) / firstHalf) * 100
+    const absPct = Math.abs(pct)
+    if (absPct < 1) return undefined
+    return { direction: pct > 0 ? 'up' : 'down', change: `${absPct.toFixed(0)}%` }
+  }
 
   return (
     <>
@@ -38,8 +62,20 @@ export default function Dashboard() {
 
       <AnimatedSection>
         <div className="kpi-grid">
-          <KpiCard value={overview.impressions_7d.toLocaleString()} label="Impressions (7d)" />
-          <KpiCard value={overview.clicks_7d.toLocaleString()} label="Clicks (7d)" />
+          <KpiCard
+            value={overview.impressions_7d.toLocaleString()}
+            label="Impressions (7d)"
+            sparklineData={overview.impressions_by_day}
+            trend={computeTrend(overview.impressions_by_day)}
+            color="#3b82f6"
+          />
+          <KpiCard
+            value={overview.clicks_7d.toLocaleString()}
+            label="Clicks (7d)"
+            sparklineData={overview.clicks_by_day}
+            trend={computeTrend(overview.clicks_by_day)}
+            color="#10b981"
+          />
           <KpiCard value={(overview.ctr * 100).toFixed(2) + '%'} label="CTR" />
           <KpiCard value={overview.reciprocity_balance > 0 ? `+${overview.reciprocity_balance}` : String(overview.reciprocity_balance)} label="Reciprocity Balance" />
           {overview.conversions_7d !== undefined && (
