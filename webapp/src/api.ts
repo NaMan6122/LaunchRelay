@@ -87,6 +87,18 @@ export interface DashboardData {
   }
 }
 
+export interface EmbedInstance {
+  id: string
+  startup_id: string
+  host_domain: string
+  widget_format: string
+  widget_theme: string
+  widget_position: string
+  no_branding: boolean
+  status: string
+  last_verified_at: string
+}
+
 export interface Category {
   id: string
   name: string
@@ -147,6 +159,22 @@ export const api = {
       status?: string
     }) {
       return request<{ status: string }>(`/startups/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+  },
+  embeds: {
+    list(startupId: string) {
+      return request<EmbedInstance[]>(`/startups/${startupId}/embeds`)
+    },
+    update(startupId: string, embedId: string, data: {
+      widget_format?: string
+      widget_theme?: string
+      widget_position?: string
+      no_branding?: boolean
+    }) {
+      return request<{ status: string }>(`/startups/${startupId}/embeds/${embedId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       })

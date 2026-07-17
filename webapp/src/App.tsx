@@ -11,6 +11,7 @@ import Login from './pages/Login'
 import Apply from './pages/Apply'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
+import WidgetSettings from './pages/WidgetSettings'
 import './styles/app.css'
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/apply" element={<Apply />} />
               <Route path="/dashboard/:startupId" element={<Dashboard />} />
               <Route path="/dashboard/:startupId/settings" element={<Settings />} />
+              <Route path="/dashboard/:startupId/widget" element={<WidgetSettings />} />
             </Routes>
           </div>
         </main>

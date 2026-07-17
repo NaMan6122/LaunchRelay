@@ -51,8 +51,21 @@ func toSlug(name string) string {
 	return s
 }
 
-func generateEmbedCode(startupID string) string {
-	return `<script src="https://cdn.launchrelay.com/widget.js" data-startup-id="` + startupID + `" async></script>`
+func generateEmbedCode(startupID string, opts ...map[string]string) string {
+	code := `<script src="https://cdn.launchrelay.com/widget.js" data-startup-id="` + startupID + `"`
+	attrs := ""
+	if len(opts) > 0 {
+		for k, v := range opts[0] {
+			if v != "" {
+				attrs += ` ` + k + `="` + v + `"`
+			}
+		}
+		if opts[0]["data-no-branding"] == "true" {
+			attrs += ` data-no-branding`
+		}
+	}
+	code += attrs + ` async></script>`
+	return code
 }
 
 func validURL(raw string) bool {

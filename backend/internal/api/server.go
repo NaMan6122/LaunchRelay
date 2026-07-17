@@ -86,6 +86,8 @@ func (s *Server) registerRoutes() {
 		r.Get("/v1/startups/{id}/webhooks", s.requireOwnership(s.handleListWebhooks()))
 		r.Delete("/v1/startups/{id}/webhooks/{webhook_id}", s.requireOwnership(s.handleDeleteWebhook()))
 		r.Get("/v1/dashboard/{startup_id}", s.requireOwnership(s.handleDashboard()))
+		r.Get("/v1/startups/{id}/embeds", s.requireOwnership(s.handleListEmbeds()))
+		r.Patch("/v1/startups/{id}/embeds/{embed_id}", s.requireOwnership(s.handleUpdateEmbed()))
 	})
 
 	// Ledger (admin-only — requires ADMIN_KEY env var)

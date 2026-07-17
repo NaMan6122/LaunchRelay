@@ -875,6 +875,22 @@ tbody tr:hover { background: rgba(42, 35, 29, 0.4); }
 }
 .category-chip:focus-within { outline: 2px solid var(--blue-600); outline-offset: 2px; }
 
+.form-select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  background: rgba(15, 11, 9, 0.6);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition);
+  appearance: auto;
+}
+.form-select:focus { border-color: var(--blue-600); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
 .btn-spinner {
   width: 16px;
   height: 16px;
