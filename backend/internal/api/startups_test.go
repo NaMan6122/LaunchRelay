@@ -46,16 +46,25 @@ func uniqueName(prefix string) string {
 
 func createTestStartup(t *testing.T, s *Server, name string) string {
 	t.Helper()
-	slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
+	slug := toSlug(name)
 	var id string
 	err := s.db.QueryRow(
-		`INSERT INTO startups (name, url, slug, one_line_pitch, email)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		`INSERT INTO startups (name, url, slug, one_line_pitch, email, status)
+		 VALUES ($1, $2, $3, $4, $5, 'active') RETURNING id`,
 		name, "https://"+slug+".com", slug, "test pitch", "test@"+slug+".com",
 	).Scan(&id)
 	if err != nil {
 		t.Fatalf("create test startup: %v", err)
 	}
+	t.Cleanup(func() {
+		s.db.Exec(`DELETE FROM startup_categories WHERE startup_id = $1`, id)
+		s.db.Exec(`DELETE FROM impressions WHERE viewer_startup_id = $1 OR shown_startup_id = $1`, id)
+		s.db.Exec(`DELETE FROM clicks WHERE impression_id IN (SELECT id FROM impressions WHERE viewer_startup_id = $1 OR shown_startup_id = $1)`, id)
+		s.db.Exec(`DELETE FROM webhooks WHERE startup_id = $1`, id)
+		s.db.Exec(`DELETE FROM competitor_exclusions WHERE startup_id = $1 OR excluded_startup_id = $1`, id)
+		s.db.Exec(`DELETE FROM auth_tokens WHERE startup_id = $1`, id)
+		s.db.Exec(`DELETE FROM startups WHERE id = $1`, id)
+	})
 	return id
 }
 
@@ -82,8 +91,8 @@ func TestCreateStartup(t *testing.T) {
 	if resp.Name != name {
 		t.Errorf("expected name %s, got %s", name, resp.Name)
 	}
-	if resp.Status != "pending" {
-		t.Errorf("expected status pending, got %s", resp.Status)
+	if resp.Status != "active" {
+		t.Errorf("expected status active, got %s", resp.Status)
 	}
 	if resp.EmbedCode == "" {
 		t.Errorf("expected non-empty embed code")

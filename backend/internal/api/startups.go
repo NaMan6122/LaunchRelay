@@ -1,7 +1,10 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -83,11 +86,23 @@ func (s *Server) handleCreateStartup() http.HandlerFunc {
 
 		var id string
 		err := s.db.QueryRow(
-			`INSERT INTO startups (name, url, slug, one_line_pitch, email)
-			 VALUES ($1, $2, $3, $4, $5)
+			`INSERT INTO startups (name, url, slug, one_line_pitch, email, status)
+			 VALUES ($1, $2, $3, $4, $5, 'active')
 			 RETURNING id`,
 			req.Name, req.URL, slug, req.OneLinePitch, req.Email,
 		).Scan(&id)
+		if err != nil && strings.Contains(err.Error(), "unique") {
+			// Slug collision — append random suffix and retry once
+			suffix := make([]byte, 3)
+			rand.Read(suffix)
+			slug = fmt.Sprintf("%s-%s", slug, hex.EncodeToString(suffix))
+			err = s.db.QueryRow(
+				`INSERT INTO startups (name, url, slug, one_line_pitch, email, status)
+				 VALUES ($1, $2, $3, $4, $5, 'active')
+				 RETURNING id`,
+				req.Name, req.URL, slug, req.OneLinePitch, req.Email,
+			).Scan(&id)
+		}
 		if err != nil {
 			if strings.Contains(err.Error(), "unique") {
 				writeError(w, http.StatusConflict, "a startup with this name already exists")
@@ -107,6 +122,15 @@ func (s *Server) handleCreateStartup() http.HandlerFunc {
 			s.db.Exec(`INSERT INTO startup_categories (startup_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, id, catID)
 		}
 
+		// If the user is authenticated, link their session to this startup
+		if authHeader := r.Header.Get("Authorization"); len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			hashed := hashToken(authHeader[7:])
+			var tokenEmail string
+			if err := s.db.Get(&tokenEmail, `SELECT email FROM auth_tokens WHERE token = $1 AND expires_at > NOW()`, hashed); err == nil {
+				s.db.Exec(`UPDATE auth_tokens SET startup_id = $1 WHERE email = $2 AND startup_id IS NULL`, id, tokenEmail)
+			}
+		}
+
 		writeCreated(w, StartupResponse{
 			ID:        id,
 			Name:      req.Name,
@@ -114,17 +138,15 @@ func (s *Server) handleCreateStartup() http.HandlerFunc {
 			Slug:      slug,
 			Pitch:     req.OneLinePitch,
 			Categories: req.Categories,
-			Status:    "pending",
+			Status:    "active",
 			EmbedCode: generateEmbedCode(id),
 			CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 }
 
-func (s *Server) handleUpdateStartup() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := chi.URLParam(r, "id")
-
+func (s *Server) handleUpdateStartup() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, id string) {
 		var req StartupStatusUpdate
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
