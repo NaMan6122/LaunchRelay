@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth'
 import { api, type Category } from '../api'
 import GlassCard from '../components/GlassCard'
+import { useToast } from '../components/ToastContext'
 
 export default function Apply() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [form, setForm] = useState({ name: '', url: '', one_line_pitch: '', email: '', categories: [] as string[] })
   const [error, setError] = useState('')
@@ -12,8 +14,10 @@ export default function Apply() {
   const [result, setResult] = useState<{ embed_code: string; id: string } | null>(null)
 
   useEffect(() => {
-    api.categories.list().then(setCategories).catch(() => {})
-  }, [])
+    api.categories.list().then(setCategories).catch(() => {
+      toast('Failed to load categories', 'error')
+    })
+  }, [toast])
 
   useEffect(() => {
     if (user?.email && !form.email) {
@@ -41,10 +45,23 @@ export default function Apply() {
     try {
       const res = await api.startups.create(form)
       setResult({ embed_code: res.embed_code, id: res.id })
+      toast('Application submitted successfully!', 'success')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to submit application')
+      const msg = err instanceof Error ? err.message : 'Failed to submit application'
+      setError(msg)
+      toast(msg, 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function copyEmbed() {
+    if (!result) return
+    try {
+      await navigator.clipboard.writeText(result.embed_code)
+      toast('Embed code copied!', 'success')
+    } catch {
+      toast('Failed to copy', 'error')
     }
   }
 
@@ -53,11 +70,12 @@ export default function Apply() {
       <section className="page-centered">
         <GlassCard glow>
           <div className="result-icon">&#x2705;</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Application submitted!</h2>
-          <p style={{ color: 'var(--slate-500)', marginBottom: 28 }}>Your startup is <strong>pending review</strong>. You&apos;ll be notified once it&apos;s approved.</p>
+          <h2 style={{ marginBottom: 6 }}>Application submitted!</h2>
+          <p className="text-muted" style={{ marginBottom: 28 }}>Your startup is <strong>pending review</strong>. You&apos;ll be notified once it&apos;s approved.</p>
           <div className="embed-preview">
-            <p className="text-muted">Your embed code:</p>
-            <code className="embed-code">{result.embed_code}</code>
+            <p className="text-muted" style={{ marginBottom: 8 }}>Your embed code:</p>
+            <code className="embed-code" style={{ marginBottom: 12 }}>{result.embed_code}</code>
+            <button className="btn btn-primary btn-full" onClick={copyEmbed}>Copy Embed Code</button>
           </div>
         </GlassCard>
       </section>
@@ -67,8 +85,8 @@ export default function Apply() {
   return (
     <section className="page-centered">
       <GlassCard glow>
-        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Apply to LaunchRelay</h2>
-        <p style={{ color: 'var(--slate-500)', marginBottom: 28 }}>Join the network and start getting real visitors.</p>
+        <h2 style={{ marginBottom: 6 }}>Apply to LaunchRelay</h2>
+        <p className="text-muted" style={{ marginBottom: 28 }}>Join the network and start getting real visitors.</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="name">Startup name</label>
@@ -84,7 +102,7 @@ export default function Apply() {
             <span className="char-count">{form.one_line_pitch.length}/280</span>
           </div>
           <div className="form-group">
-            <label>Categories (select at least one)</label>
+            <label>Categories <span className="text-muted" style={{ fontWeight: 400 }}>(select at least one)</span></label>
             <div className="category-grid">
               {categories.map((cat) => (
                 <label key={cat.id} className={`category-chip ${form.categories.includes(cat.name) ? 'selected' : ''}`}>
@@ -94,6 +112,7 @@ export default function Apply() {
                     onChange={() => toggleCategory(cat.name)}
                     hidden
                   />
+                  {form.categories.includes(cat.name) && <span className="category-chip-check">✓</span>}
                   {cat.name}
                 </label>
               ))}
