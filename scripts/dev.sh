@@ -15,6 +15,7 @@ err()   { printf "${RED}[%s]${NC} %s\n" "ERR" "$1"; exit 1; }
 
 cleanup() {
   info "DEV" "Shutting down..."
+  kill $BACKEND_PID 2>/dev/null
   cd "$ROOT/backend" && docker compose down 2>/dev/null
 }
 trap cleanup EXIT
@@ -68,15 +69,13 @@ fi
 # ── 3. Kill stale backend ────────────────────────────────────────
 kill_existing
 
-# ── 4. Print useful info ─────────────────────────────────────────
-info "3/4" "Starting API server"
-echo ""
-printf "  ${GREEN}API:${NC}      http://localhost:8080\n"
-printf "  ${GREEN}Health:${NC}   http://localhost:8080/v1/health\n"
-printf "  ${GREEN}Frontend:${NC} http://localhost:5173 (run 'cd webapp && npx vite' separately)\n"
-printf "  ${GREEN}DB:${NC}       postgres://launchrelay:launchrelay_dev@localhost:5432/launchrelay\n"
-echo ""
+# ── 4. Start API server (background) ──────────────────────────────
+info "3/4" "Starting API server..."
+cd "$ROOT/backend" && go run ./cmd/api/ &
+BACKEND_PID=$!
+sleep 2
 
-# ── 5. Start API server ──────────────────────────────────────────
-info "4/4" "Running go run ./cmd/api/ ..."
-cd "$ROOT/backend" && go run ./cmd/api/
+# ── 5. Start Vite frontend (foreground) ───────────────────────────
+info "4/4" "Starting Vite frontend..."
+printf "\n  ${GREEN}Frontend:${NC} http://localhost:5173\n  ${GREEN}API:${NC}      http://localhost:8080\n  ${GREEN}DB:${NC}       postgres://launchrelay:launchrelay_dev@localhost:5432/launchrelay\n  ${GREEN}Press Ctrl+C${NC} to stop everything\n\n"
+cd "$ROOT/webapp" && npx vite
