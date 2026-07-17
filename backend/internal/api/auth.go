@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -81,7 +82,9 @@ func (s *Server) handleSendMagicLink() http.HandlerFunc {
 		devMode := os.Getenv("DEV_MODE") != "false"
 		resp := MagicLinkResponse{Sent: true}
 		if devMode {
-			resp.Debug = "/login?token=" + token
+			debugPath := "/login?token=" + token
+			resp.Debug = debugPath
+			log.Printf("[dev] magic link for %s: %s", req.Email, debugPath)
 		}
 
 		writeOK(w, resp)

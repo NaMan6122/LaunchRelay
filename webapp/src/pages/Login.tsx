@@ -7,6 +7,7 @@ import GlassCard from '../components/GlassCard'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
+  const [debugUrl, setDebugUrl] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [searchParams] = useSearchParams()
@@ -34,8 +35,9 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await api.auth.sendMagicLink(email)
+      const res = await api.auth.sendMagicLink(email)
       setSent(true)
+      if (res.debug) setDebugUrl(res.debug)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to send login link')
     } finally {
@@ -59,9 +61,15 @@ export default function Login() {
       <section className="page-centered">
         <GlassCard>
           <div className="login-icon">&#x2709;</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6, color: 'var(--navy)' }}>Check your email</h2>
-          <p style={{ color: 'var(--slate-500)', marginBottom: 20 }}>We sent a magic link to <strong>{email}</strong>. Click it to log in.</p>
-          <p className="text-muted">No password needed. The link expires in 15 minutes.</p>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>Check your email</h2>
+          <p className="text-muted" style={{ marginBottom: 12 }}>We sent a magic link to <strong>{email}</strong>. Click it to log in.</p>
+          <p className="text-muted" style={{ marginBottom: debugUrl ? 20 : 0 }}>No password needed. The link expires in 15 minutes.</p>
+          {debugUrl && (
+            <div className="debug-link">
+              <span className="debug-label">Dev mode — click to log in:</span>
+              <a href={debugUrl} className="debug-magic-link">{debugUrl}</a>
+            </div>
+          )}
         </GlassCard>
       </section>
     )

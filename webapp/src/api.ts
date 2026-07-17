@@ -147,7 +147,7 @@ export const api = {
   },
   auth: {
     sendMagicLink(email: string) {
-      return request<{ sent: boolean }>('/auth/magic-link', {
+      return request<{ sent: boolean; debug?: string }>('/auth/magic-link', {
         method: 'POST',
         body: JSON.stringify({ email }),
       })
