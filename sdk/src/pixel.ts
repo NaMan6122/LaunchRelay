@@ -13,7 +13,7 @@
   }
 
   // No lr_ref in URL → this is the conversion page. Fire if we have a stored impression.
-  var impressionId: string | null = null;
+  var impressionId = null;
   try {
     impressionId = localStorage.getItem(LS_KEY);
   } catch (_) { /* silent */ }

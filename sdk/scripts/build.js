@@ -2,29 +2,34 @@ const esbuild = require('esbuild');
 const args = process.argv.slice(2);
 const watch = args.includes('--watch');
 
-async function build() {
-  const config = {
-    entryPoints: ['src/index.ts'],
-    outfile: 'dist/widget.js',
+const entries = [
+  { entryPoints: ['src/index.ts'], outfile: 'dist/widget.js', globalName: 'LaunchRelay' },
+  { entryPoints: ['src/pixel.ts'], outfile: 'dist/pixel.js', globalName: undefined },
+];
+
+async function buildAll() {
+  const configs = entries.map((e) => ({
+    entryPoints: e.entryPoints,
+    outfile: e.outfile,
     bundle: true,
     minify: true,
     format: 'iife',
-    globalName: 'LaunchRelay',
+    globalName: e.globalName,
     target: 'es2020',
     platform: 'browser',
-  };
+  }));
 
   if (watch) {
-    const ctx = await esbuild.context(config);
-    await ctx.watch();
-    console.log('Watching for changes...');
+    const ctxs = await Promise.all(configs.map((c) => esbuild.context(c)));
+    console.log(`Watching ${entries.length} files...`);
+    await Promise.all(ctxs.map((ctx) => ctx.watch()));
   } else {
-    await esbuild.build(config);
-    console.log('Build complete: dist/widget.js');
+    await Promise.all(configs.map((c) => esbuild.build(c)));
+    console.log(`Build complete: ${entries.map((e) => e.outfile).join(', ')}`);
   }
 }
 
-build().catch(err => {
+buildAll().catch((err) => {
   console.error(err);
   process.exit(1);
 });
