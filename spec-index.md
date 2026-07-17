@@ -16,4 +16,10 @@
 | spec-012 | Verified-Traffic Tier | v1 | IMPLEMENTED | spec-003 | T-014 | Self-reported monthly visitors |
 | spec-013 | Webhook/Zapier Export | v1 | IMPLEMENTED | spec-005 | T-014 | |
 | spec-014 | Monetization (Paid Boost) | v1 | IMPLEMENTED | spec-003, spec-004 | T-014 | Boost levels in matching |
-| spec-015 | UI Enhancement Suite | v1 | DRAFT | NONE | — | Skeletons, transitions, toasts, sparklines |
+| spec-015 | UI Enhancement Suite | v1 | IMPLEMENTED | NONE | T-015 DONE | Skeletons, transitions, toasts, sparklines |
+| spec-016 | Startup Profile Editor | v1 | IMPLEMENTED | spec-004, AUTH-001 | T-016 DONE | Edit name/url/pitch/categories after application |
+| spec-017 | Widget Customization UI | v1 | IMPLEMENTED | spec-004, AUTH-001 | T-017 DONE | Dashboard UI for format/theme/position config |
+| spec-018 | Email Delivery for Magic Links | v1 | IMPLEMENTED | spec-003 | T-018 DONE | SendGrid/SES email for production auth |
+| spec-019 | Embed Status & Domain List | v1 | IMPLEMENTED | spec-004, AUTH-001 | T-019 DONE | Dashboard card showing embed instances |
+| spec-020 | Competitor Exclusion UI | v1 | IMPLEMENTED | spec-004, AUTH-001 | T-020 DONE | Frontend for managing exclusion rules |
+| spec-021 | Public Startup Profile Pages (SSR) | v1 | IMPLEMENTED | spec-004 | T-021 DONE | SEO-optimized server-rendered directory pages |
