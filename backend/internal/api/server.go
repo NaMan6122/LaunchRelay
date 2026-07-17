@@ -121,18 +121,20 @@ func (s *Server) registerRoutes() {
 		})
 	}
 
+	// Server-rendered directory pages (SEO) — must be before catch-all
+	s.router.Get("/directory", s.handleDirectoryHTML())
+	s.router.Get("/directory/{slug}", s.handleProfileHTML())
+
 	// React SPA — serves the unified frontend for all UI routes
 	reactShell := s.handleReactShell("", "")
 	s.router.Get("/", reactShell)
 	s.router.Get("/about", reactShell)
-	s.router.Get("/directory", reactShell)
-	s.router.Get("/directory/{slug}", reactShell)
 	s.router.Get("/login", s.handleReactShell("login", ""))
 	s.router.Get("/apply", s.handleReactShell("apply", ""))
 	s.router.Get("/dashboard/{startup_id}", func(w http.ResponseWriter, r *http.Request) {
 		s.handleReactShell("dashboard", chi.URLParam(r, "startup_id"))(w, r)
 	})
-	// Catch-all for client-side routing
+	// SPA catch-all for all other client-side routes
 	s.router.Get("/*", reactShell)
 }
 

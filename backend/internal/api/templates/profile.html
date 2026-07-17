@@ -1,5 +1,22 @@
 {{define "title"}}{{.Name}} — LaunchRelay Directory{{end}}
 
+{{define "head"}}
+<meta name="description" content="{{.Pitch}}">
+<meta property="og:title" content="{{.Name}}">
+<meta property="og:description" content="{{.Pitch}}">
+<meta property="og:url" content="https://launchrelay.com/directory/{{.Slug}}">
+<link rel="canonical" href="https://launchrelay.com/directory/{{.Slug}}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "{{.Name}}",
+  "description": "{{.Pitch}}",
+  "url": "{{.URL}}"
+}
+</script>
+{{end}}
+
 {{define "content"}}
 <div style="margin-bottom:16px">
   <a href="/directory" style="font-size:13px;color:#666">&larr; Back to Directory</a>
