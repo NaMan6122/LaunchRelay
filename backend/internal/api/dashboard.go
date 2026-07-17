@@ -3,8 +3,6 @@ package api
 import (
 	"net/http"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type DashboardResponse struct {
@@ -71,18 +69,24 @@ type DashboardTrust struct {
 	Status         string  `json:"status"`
 }
 
-func (s *Server) handleDashboard() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "startup_id")
+func (s *Server) handleDashboard() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 
-		var exists bool
-		s.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM startups WHERE id = $1)`, startupID)
-		if !exists {
+		var status string
+		err := s.db.Get(&status, `SELECT status FROM startups WHERE id = $1`, startupID)
+		if err != nil {
 			writeError(w, http.StatusNotFound, "startup not found")
 			return
 		}
 
-		resp := DashboardResponse{StartupID: startupID}
+		if status == "pending" {
+			s.db.Exec(`UPDATE startups SET status = 'active', updated_at = NOW() WHERE id = $1`, startupID)
+		}
+
+		resp := DashboardResponse{
+			StartupID:     startupID,
+			RecentMatches: []RecentMatch{},
+		}
 		sevenDaysAgo := time.Now().UTC().AddDate(0, 0, -7)
 
 		// 7-day impressions
@@ -102,7 +106,7 @@ func (s *Server) handleDashboard() http.HandlerFunc {
 			resp.Overview.CTR = float64(resp.Overview.Clicks7d) / float64(resp.Overview.Impressions7d)
 		}
 
-		// Daily bucketed impressions (for sparklines)
+		resp.Overview.ImpressionsByDay = []DayBucket{}
 		func() {
 			dRows, err := s.db.Query(`
 				SELECT TO_CHAR(timestamp, 'YYYY-MM-DD') as day, COUNT(*) as cnt
@@ -120,6 +124,7 @@ func (s *Server) handleDashboard() http.HandlerFunc {
 				resp.Overview.ImpressionsByDay = append(resp.Overview.ImpressionsByDay, b)
 			}
 		}()
+		resp.Overview.ClicksByDay = []DayBucket{}
 		func() {
 			dRows, err := s.db.Query(`
 				SELECT TO_CHAR(c.timestamp, 'YYYY-MM-DD') as day, COUNT(*) as cnt
@@ -171,7 +176,11 @@ func (s *Server) handleDashboard() http.HandlerFunc {
 
 		// Breakdowns
 		if resp.Overview.Impressions7d > 0 {
-			breakdowns := &Breakdowns{}
+			breakdowns := &Breakdowns{
+				ByDevice:   []DeviceBreakdown{},
+				ByReferrer: []ReferrerBreakdown{},
+				ByCountry:  []CountryBreakdown{},
+			}
 			total7d := float64(resp.Overview.Impressions7d)
 
 			// By device type

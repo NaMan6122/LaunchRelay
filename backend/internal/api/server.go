@@ -41,9 +41,15 @@ func New(db *sqlx.DB) *Server {
 func (s *Server) registerRoutes() {
 	s.router.Get("/v1/health", s.handleHealth())
 
-	// Auth routes
+	// Auth routes (public)
 	s.router.Post("/v1/auth/magic-link", s.handleSendMagicLink())
 	s.router.Post("/v1/auth/verify", s.handleVerifyMagicLink())
+
+	// Auth routes (protected - requires valid session)
+	s.router.Group(func(r chi.Router) {
+		r.Use(s.authMiddleware)
+		r.Post("/v1/auth/logout", s.handleLogout())
+	})
 
 	// Rate-limited routes
 	s.router.Group(func(r chi.Router) {
@@ -54,38 +60,36 @@ func (s *Server) registerRoutes() {
 		r.Post("/v1/clicks", s.handleClick())
 	})
 
-	// Startups
+	// Startups (public)
 	s.router.Post("/v1/startups", s.handleCreateStartup())
 	s.router.Get("/v1/startups/{id}", s.handleGetStartup())
-	s.router.Patch("/v1/startups/{id}", s.handleUpdateStartup())
 
-	// Categories
+	// Categories (public)
 	s.router.Get("/v1/categories", s.handleListCategories())
-
-	// Competitor exclusions
-	s.router.Post("/v1/startups/{id}/exclusions", s.handleCreateExclusion())
-	s.router.Get("/v1/startups/{id}/exclusions", s.handleListExclusions())
-
-	// Trust score
-	s.router.Get("/v1/startups/{id}/trust", s.handleTrustScore())
-
-	// Traffic verification
-	s.router.Post("/v1/startups/{id}/verify-traffic", s.handleVerifyTraffic())
-
-	// Webhooks
-	s.router.Post("/v1/startups/{id}/webhooks", s.handleCreateWebhook())
-	s.router.Get("/v1/startups/{id}/webhooks", s.handleListWebhooks())
-	s.router.Delete("/v1/startups/{id}/webhooks/{webhook_id}", s.handleDeleteWebhook())
-
-	// Dashboard API (JSON)
-	s.router.Get("/v1/dashboard/{startup_id}", s.handleDashboard())
 
 	// Public directory API (JSON)
 	s.router.Get("/v1/directory", s.handleListDirectory())
 	s.router.Get("/v1/directory/{slug}", s.handleDirectoryEntry())
 
-	// Ledger (admin-triggered monthly computation)
-	s.router.Post("/v1/admin/ledger/compute", s.handleComputeLedger())
+	// Trust score (semi-public — needed for the directory display)
+	s.router.Get("/v1/startups/{id}/trust", s.handleTrustScore())
+
+	// Protected startup routes — require auth + ownership
+	s.router.Group(func(r chi.Router) {
+		r.Use(s.authMiddleware)
+
+		r.Patch("/v1/startups/{id}", s.requireOwnership(s.handleUpdateStartup()))
+		r.Post("/v1/startups/{id}/exclusions", s.requireOwnership(s.handleCreateExclusion()))
+		r.Get("/v1/startups/{id}/exclusions", s.requireOwnership(s.handleListExclusions()))
+		r.Post("/v1/startups/{id}/verify-traffic", s.requireOwnership(s.handleVerifyTraffic()))
+		r.Post("/v1/startups/{id}/webhooks", s.requireOwnership(s.handleCreateWebhook()))
+		r.Get("/v1/startups/{id}/webhooks", s.requireOwnership(s.handleListWebhooks()))
+		r.Delete("/v1/startups/{id}/webhooks/{webhook_id}", s.requireOwnership(s.handleDeleteWebhook()))
+		r.Get("/v1/dashboard/{startup_id}", s.requireOwnership(s.handleDashboard()))
+	})
+
+	// Ledger (admin-only — requires ADMIN_KEY env var)
+	s.router.Post("/v1/admin/ledger/compute", s.adminMiddleware(s.handleComputeLedger()))
 
 	// SEO
 	s.router.Get("/robots.txt", s.handleRobotsTxt())

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,7 +10,13 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
+
+type contextKey string
+
+const UserEmailKey contextKey = "userEmail"
 
 type MagicLinkRequest struct {
 	Email string `json:"email"`
@@ -28,18 +35,6 @@ type VerifyResponse struct {
 	Token     string  `json:"token"`
 	Email     string  `json:"email"`
 	StartupID *string `json:"startup_id,omitempty"`
-}
-
-type AuthMiddleware struct {
-	secret string
-}
-
-func NewAuthMiddleware() *AuthMiddleware {
-	secret := os.Getenv("AUTH_SECRET")
-	if secret == "" {
-		secret = "launchrelay-dev-secret-do-not-use-in-prod"
-	}
-	return &AuthMiddleware{secret: secret}
 }
 
 func generateToken() string {
@@ -167,7 +162,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Expect "Bearer <token>"
 		if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
 			http.Error(w, `{"error":"invalid authorization format"}`, http.StatusUnauthorized)
 			return
@@ -187,8 +181,80 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Set email in context for downstream handlers
-		r.Header.Set("X-User-Email", email)
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), UserEmailKey, email)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func getUserEmail(r *http.Request) string {
+	email, _ := r.Context().Value(UserEmailKey).(string)
+	return email
+}
+
+func (s *Server) requireOwnership(next func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		email := getUserEmail(r)
+		if email == "" {
+			writeError(w, http.StatusUnauthorized, "authorization required")
+			return
+		}
+
+		startupID := chi.URLParam(r, "id")
+		if startupID == "" {
+			startupID = chi.URLParam(r, "startup_id")
+		}
+
+		var ownerEmail string
+		err := s.db.Get(&ownerEmail, `SELECT email FROM startups WHERE id = $1`, startupID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "startup not found")
+			return
+		}
+
+		if ownerEmail != email {
+			writeError(w, http.StatusForbidden, "you do not own this startup")
+			return
+		}
+
+		next(w, r, startupID)
+	}
+}
+
+func (s *Server) adminMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		adminKey := os.Getenv("ADMIN_KEY")
+		if adminKey == "" {
+			writeError(w, http.StatusForbidden, "admin access not configured")
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) < 7 || authHeader[:7] != "Bearer " || authHeader[7:] != adminKey {
+			writeError(w, http.StatusForbidden, "invalid admin key")
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func (s *Server) handleLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+			writeError(w, http.StatusUnauthorized, "authorization required")
+			return
+		}
+
+		token := authHeader[7:]
+		hashed := hashToken(token)
+
+		_, err := s.db.Exec(`DELETE FROM auth_tokens WHERE token = $1`, hashed)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to logout")
+			return
+		}
+
+		writeOK(w, map[string]bool{"logged_out": true})
+	}
 }

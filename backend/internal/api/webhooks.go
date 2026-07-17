@@ -31,9 +31,8 @@ type WebhookEventPayload struct {
 	Timestamp     string `json:"timestamp"`
 }
 
-func (s *Server) handleCreateWebhook() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "id")
+func (s *Server) handleCreateWebhook() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 
 		var exists bool
 		s.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM startups WHERE id = $1)`, startupID)
@@ -70,9 +69,8 @@ func (s *Server) handleCreateWebhook() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleListWebhooks() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "id")
+func (s *Server) handleListWebhooks() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 
 		var hooks []Webhook
 		err := s.db.Select(&hooks, `
@@ -87,8 +85,8 @@ func (s *Server) handleListWebhooks() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleDeleteWebhook() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeleteWebhook() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 		webhookID := chi.URLParam(r, "webhook_id")
 
 		_, err := s.db.Exec(`DELETE FROM webhooks WHERE id = $1`, webhookID)

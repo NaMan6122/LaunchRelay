@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type ExclusionRequest struct {
@@ -18,10 +16,8 @@ type ExclusionResponse struct {
 	ExcludedCategoryID string `json:"excluded_category_id,omitempty"`
 }
 
-func (s *Server) handleCreateExclusion() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "id")
-
+func (s *Server) handleCreateExclusion() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 		var req ExclusionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
@@ -59,9 +55,8 @@ func (s *Server) handleCreateExclusion() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleListExclusions() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "id")
+func (s *Server) handleListExclusions() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 
 		rows, err := s.db.Query(
 			`SELECT id, COALESCE(excluded_startup_id::text, ''), COALESCE(excluded_category_id::text, '')

@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type VerifyTrafficRequest struct {
@@ -16,9 +14,8 @@ type VerifyTrafficResponse struct {
 	Score    float64 `json:"trust_score"`
 }
 
-func (s *Server) handleVerifyTraffic() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		startupID := chi.URLParam(r, "id")
+func (s *Server) handleVerifyTraffic() func(http.ResponseWriter, *http.Request, string) {
+	return func(w http.ResponseWriter, r *http.Request, startupID string) {
 
 		var exists bool
 		s.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM startups WHERE id = $1)`, startupID)
